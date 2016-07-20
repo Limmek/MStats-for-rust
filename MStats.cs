@@ -1,15 +1,15 @@
-// Reference: Oxide.Ext.MySql
 using System;
 using System.Text;
 using System.Net;
 using Oxide.Core;
 using Oxide.Core.Database;
+using Oxide.Ext.MySql;
 using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
 
 namespace Oxide.Plugins {
-    [Info("MStats", "Limmek", "1.1.1", ResourceId = 123)]
+    [Info("MStats", "Limmek", "1.2.1", ResourceId = 123)]
     [Description("Logs player statistics and other server stuff to MySql")]
     
     public class MStats : RustPlugin { 	
@@ -32,7 +32,7 @@ namespace Oxide.Plugins {
             Config["_LogAridrops"] = false;
             Config["_AdminLog"] = false;
             Config["_AdminLogWords"] = "admin, admn, kim, rasist, fuck";
-            Config["Version"] = "1.1.1";     
+            Config["Version"] = "1.2.1";     
             SaveConfig();
         }
 
@@ -100,34 +100,26 @@ namespace Oxide.Plugins {
             throw new NotSupportedException("This plugin does not support this game");
             #endif
 
+       		string curVersion = Version.ToString();
+            string[] version = curVersion.Split('.');
+            var majorPluginUpdate = version[0]; 	// Big Plugin Update
+            var minorPluginUpdate = version[1];		// Small Plugin Update
+            var databaseVersion = version[2];		// Database Update
+        	var pluginVersion = majorPluginUpdate+"."+minorPluginUpdate;
+        	Puts("Plugin version: "+majorPluginUpdate+"."+minorPluginUpdate+"  Database version: "+databaseVersion);
+        	if (pluginVersion != getConfigVersion("plugin") ) {
+        		Puts("New "+pluginVersion+" Old "+getConfigVersion("plugin") );
+        		Config["Version"] = pluginVersion+"."+databaseVersion;     
+	            SaveConfig();	 
+        	}
+        	if (databaseVersion != getConfigVersion("db") ){
+        		Puts("New "+databaseVersion+" Old "+getConfigVersion("db") );
+        		PrintWarning("Database base changes please drop the old!");
+        		Config["Version"] = pluginVersion+"."+databaseVersion;    
+	            SaveConfig();	           		
+        	}
             
-            // get curent plugin version and database version from the plugin
-	        var pluginList = plugins.GetAll();
-	        for (int i = 0; i < pluginList.Length; i++)
-	        {
-	        	var title = pluginList[i].Title;
-	       		var curVersion = pluginList[i].Version.ToString();
-       			var resourceId = pluginList[i].ResourceId.ToString();
-	            if (title=="MStats"){
-		            string[] version = curVersion.Split('.');
-		            var majorPluginUpdate = version[0]; 	// Big Plugin Update
-		            var minorPluginUpdate = version[1];		// Small Plugin Update
-		            var databaseVersion = version[2];		// Database Update
-	            	var pluginVersion = majorPluginUpdate+"."+minorPluginUpdate;
-	            	Puts("Plugin version: "+majorPluginUpdate+"."+minorPluginUpdate+"  Database version: "+databaseVersion);
-	            	if (pluginVersion != getConfigVersion("plugin") ) {
-	            		Puts("New "+pluginVersion+" Old "+getConfigVersion("plugin") );
-	            		Config["Version"] = pluginVersion+"."+databaseVersion;     
-			            SaveConfig();	 
-	            	}
-	            	if (databaseVersion != getConfigVersion("db") ){
-	            		Puts("New "+databaseVersion+" Old "+getConfigVersion("db") );
-	            		PrintWarning("Database base changes please drop the old!");
-	            		Config["Version"] = pluginVersion+"."+databaseVersion;    
-			            SaveConfig();	           		
-	            	}
-	            }
-	        }	        
+	                
 	       
 		}   
 
@@ -459,7 +451,7 @@ namespace Oxide.Plugins {
 					executeQuery("INSERT INTO server_log_console (server_message, time) VALUES (@0, @1)",
 	            				 message, getDateTime());
 				}
-                if(name.ToLower()=="event"){
+                if(name.Contains("assets")){
                     PrintWarning(message);
                 }
 			}
