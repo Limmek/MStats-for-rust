@@ -432,7 +432,7 @@ namespace Oxide.Plugins {
 
             }
             //player ask after admin
-            else if (args.StartsWith("admin") ) {
+            else if (args.Contains("admin") ) {
             	//PrintWarning( player.userID+" "+player.displayName+" "+command+" "+args+" "+getDateTime() );	
 				if (LogAdminCall() == true) {
 					executeQuery("INSERT INTO admin_log (player_id, player_name, command, text, time) VALUES (@0, @1, @2, @3, @4)",
@@ -443,7 +443,7 @@ namespace Oxide.Plugins {
             string[] word = words.Split(new char[] {' ', ',' ,';','\t','\n', '\r'}, StringSplitOptions.RemoveEmptyEntries);
             foreach (string a in word) {
                 //PrintWarning(word);
-                if (args.StartsWith(a) && LogAdminCall() == true ) {
+                if (args.Contains(a) && LogAdminCall() == true ) {
                     //PrintWarning(a);
                     executeQuery("INSERT INTO admin_log (player_id, player_name, command, text, time) VALUES (@0, @1, @2, @3, @4)",
                                  player.userID, EncodeNonAsciiCharacters(player.displayName), command, args, getDateTime() );
