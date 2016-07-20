@@ -1,4 +1,4 @@
-# MySql Chat Log for Rust
+# MySql Stats Log for Rust
 Rust plugin that logs player and server statistics to MySql.
 
 ------
