@@ -465,12 +465,11 @@ namespace Oxide.Plugins {
                 var pid = player.userID.ToString();
                 var pip = player.net.connection.ipaddress;
                 string message = arg.GetString(0);
-                if (hasPermission(player, "mod")) {
+                if (player.IsAdmin()) {
                     // Admin
                     //PrintWarning(pid+" "+pname+" "+pip+" "+message+" 1 "+getDateTime());
                     executeQuery("INSERT INTO server_log_chat (player_id, player_name, player_ip, chat_message, admin, time) VALUES (@0, @1, @2, @3, @4, @5)",
                                  pid, pname, pip, message,"1",getDateTime());
-
                 }
                 else {
                     // Player
