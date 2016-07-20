@@ -17,7 +17,7 @@ All options is set to FALSE as default!<br>
 * _LogChat      - Logs Global chat.
 * _LogConsole   - Logs server messages/commands, etc admin spawn item.
 * _MySQL        - Enable this for plugin to work.
-* _AdminLogWords - Spesific words writen by players to be loged.
+* _AdminLogWords - Specific words writen by players to be loged.
 
 ------
 ###Console Commands
