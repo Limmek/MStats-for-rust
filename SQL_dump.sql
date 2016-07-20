@@ -47,10 +47,10 @@ CREATE TABLE `player_bullets_fired` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `player_call_admin`
+-- Table structure for table `admin_log`
 --
 
-CREATE TABLE `player_call_admin` (
+CREATE TABLE `admin_log` (
   `id` int(11) NOT NULL,
   `player_id` bigint(20) DEFAULT NULL,
   `player_name` varchar(128) DEFAULT NULL,
@@ -297,9 +297,9 @@ ALTER TABLE `player_bullets_fired`
   ADD UNIQUE KEY `PlayerBullet` (`player_id`,`bullet_name`,`weapon_name`,`date`);
 
 --
--- Indexes for table `player_call_admin`
+-- Indexes for table `admin_log`
 --
-ALTER TABLE `player_call_admin`
+ALTER TABLE `admin_log`
   ADD PRIMARY KEY (`id`);
 
 --
@@ -414,9 +414,9 @@ ALTER TABLE `player_authorize_list`
 ALTER TABLE `player_bullets_fired`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 --
--- AUTO_INCREMENT for table `player_call_admin`
+-- AUTO_INCREMENT for table `admin_log`
 --
-ALTER TABLE `player_call_admin`
+ALTER TABLE `admin_log`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 --
 -- AUTO_INCREMENT for table `player_chat_command`

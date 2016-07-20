@@ -9,7 +9,7 @@ using UnityEngine;
 using System.Linq;
 
 namespace Oxide.Plugins {
-    [Info("MStats", "Limmek", "1.0.0", ResourceId = 123)]
+    [Info("MStats", "Limmek", "1.1.1", ResourceId = 123)]
     [Description("Logs player statistics and other server stuff to MySql")]
     
     public class MStats : RustPlugin { 	
@@ -30,8 +30,9 @@ namespace Oxide.Plugins {
             Config["_LogChat"] = false;
             Config["_LogConsole"] = false; 
             Config["_LogAridrops"] = false;
-            Config["_LogCallAdmin"] = false;
-            Config["Version"] = "1.0.0";     
+            Config["_AdminLog"] = false;
+            Config["_AdminLogWords"] = "admin, admn, kim, rasist, fuck";
+            Config["Version"] = "1.1.1";     
             SaveConfig();
         }
 
@@ -47,7 +48,7 @@ namespace Oxide.Plugins {
         	}
         	catch (Exception ex)
         	{
-        		Puts(ex.ToString());
+        		Puts(ex.Message);
         	}
         }
         
@@ -85,7 +86,7 @@ namespace Oxide.Plugins {
 					executeQuery("CREATE TABLE IF NOT EXISTS server_log_airdrop	(id INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT, plane VARCHAR(128) NULL DEFAULT NULL, location VARCHAR(128) NULL, time TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (`id`) );");
 				}
 				if (LogAdminCall() == true) {
-					executeQuery("CREATE TABLE IF NOT EXISTS player_call_admin	(id INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL DEFAULT NULL, player_name VARCHAR(128) NULL, command VARCHAR(128) NULL, text VARCHAR(255) NULL DEFAULT NULL, time TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (`id`) );");
+					executeQuery("CREATE TABLE IF NOT EXISTS admin_log	(id INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL DEFAULT NULL, player_name VARCHAR(128) NULL, command VARCHAR(128) NULL, text VARCHAR(255) NULL DEFAULT NULL, time TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (`id`) );");
 				}
 			}
             catch (Exception ex) {
@@ -140,8 +141,7 @@ namespace Oxide.Plugins {
         }
 
         //Plugin unloaded
-        void Unloaded()
-        {
+        void Unloaded() {
             foreach (var player in BasePlayer.activePlayerList)
             {
                 OnPlayerDisconnected(player);
@@ -170,18 +170,16 @@ namespace Oxide.Plugins {
 	*/
 
 		//Player gain experience
-		void OnXpEarn(ulong id, float amount, string source)
-		{
+		void OnXpEarn(ulong id, float amount, string source) {
 			//Puts(amount.ToString()+source);
 		    executeQuery("INSERT INTO player_xp(player_id, player_xp_total) VALUES (@0, @1)"+
-		    	"ON DUPLICATE KEY UPDATE player_xp_total = player_xp_total + " + amount, id,amount );
+		    	"ON DUPLICATE KEY UPDATE player_xp_total = player_xp_total + " + amount, id,amount +" WHERE player_id ="+id);
 		}
 		
 		//Player spend experience
-		void OnXpSpent(ulong id, int amount, string item)
-		{
+		void OnXpSpent(ulong id, int amount, string item) {
 		    executeQuery("INSERT INTO player_xp(player_id, player_xp_spent) VALUES (@0, @1)"+
-		    	"ON DUPLICATE KEY UPDATE player_xp_spent = player_xp_spent + " + amount, id,amount );
+		    	"ON DUPLICATE KEY UPDATE player_xp_spent = player_xp_spent + " + amount, id,amount +" WHERE player_id ="+id);
 		}
 
 
@@ -190,8 +188,7 @@ namespace Oxide.Plugins {
         *********************************/
 
         //Player login
-        void OnPlayerInit(BasePlayer player)
-        {
+        void OnPlayerInit(BasePlayer player) {
             if (!player.IsConnected())
                 return;
 
@@ -263,13 +260,13 @@ namespace Oxide.Plugins {
             }
 		}
 
+
         /*********************************
         ** Weapons and Amunation Hooks  **
         *********************************/
 
         //Grab bullets fired and weapon type
-		void OnWeaponFired(BaseProjectile projectile, BasePlayer player, ItemModProjectile itemProjectile, ProtoBuf.ProjectileShoot projectiles)
-        {
+		void OnWeaponFired(BaseProjectile projectile, BasePlayer player, ItemModProjectile itemProjectile, ProtoBuf.ProjectileShoot projectiles) {
             string bullet = "Unknown", weapon = (player.GetActiveItem() != null ? player.GetActiveItem().info.displayName.english : "Unknown");
             try
             {
@@ -387,8 +384,7 @@ namespace Oxide.Plugins {
         *********************************/
 
         // Using Cupboard priviliges granted
-		void OnCupboardAuthorize(BuildingPrivlidge privilege, BasePlayer player)
-		{
+		void OnCupboardAuthorize(BuildingPrivlidge privilege, BasePlayer player) {
 		    var priv = privilege.ToString();
 		    var pid = player.userID.ToString();
 		    var pname = player.displayName.ToString();
@@ -398,8 +394,7 @@ namespace Oxide.Plugins {
 		}
 
 		//Using Cupboard priviliges blocked	
-		void OnCupboardDeauthorize(BuildingPrivlidge privilege, BasePlayer player)
-		{
+		void OnCupboardDeauthorize(BuildingPrivlidge privilege, BasePlayer player) {
 		    var priv = privilege.ToString();
 		    var pid = player.userID.ToString();
 		    var pname = player.displayName.ToString();
@@ -409,8 +404,7 @@ namespace Oxide.Plugins {
 		}
 
 		//using Cupboard clearing list
-		void OnCupboardClearList(BuildingPrivlidge privilege, BasePlayer player)
-		{
+		void OnCupboardClearList(BuildingPrivlidge privilege, BasePlayer player) {
 		   	var priv = privilege.ToString();
 		    var pid = player.userID.ToString();
 		    var pname = player.displayName.ToString();
@@ -419,37 +413,13 @@ namespace Oxide.Plugins {
             			 "ON DUPLICATE KEY UPDATE access = 0", pid, pname, priv, getDateTime()," WHERE cupboard=",pid);
 		}
 
-        // Log Chat messages
-        void OnPlayerChat(ConsoleSystem.Arg arg)  {   
-        	if (LogChat() == true) {
-	            BasePlayer player = (BasePlayer)arg.connection.player;
-	            var pname = EncodeNonAsciiCharacters(player.displayName);
-	            var pid = player.userID.ToString();
-	            var pip = player.net.connection.ipaddress;
-	            string message = arg.GetString(0);
-	            if (hasPermission(player, "mod")) {
-	            	// Admin
-	            	//PrintWarning(pid+" "+pname+" "+pip+" "+message+" 1 "+getDateTime());
-	            	executeQuery("INSERT INTO server_log_chat (player_id, player_name, player_ip, chat_message, admin, time) VALUES (@0, @1, @2, @3, @4, @5)",
-	            				 pid, pname, pip, message,"1",getDateTime());
-
-	            }
-	            else {
-	            	// Player
-	            	executeQuery("INSERT INTO server_log_chat (player_id, player_name, player_ip, chat_message, admin, time) VALUES (@0, @1, @2, @3, @4, @5)",
-	            				 pid, pname, pip, message,"0",getDateTime());
-	            }          		
-       		}
-        }
-
 
         /*********************************
         **      Log Console Stuff       **
         *********************************/
 
         // log Server commands 
-        void OnServerCommand(ConsoleSystem.Arg arg)
-        {
+        void OnServerCommand(ConsoleSystem.Arg arg) {
             if (arg.connection == null) return;
             var command = arg.cmd.namefull;
             var args = arg.GetString(0).ToLower();
@@ -465,9 +435,19 @@ namespace Oxide.Plugins {
             else if (args.StartsWith("admin") ) {
             	//PrintWarning( player.userID+" "+player.displayName+" "+command+" "+args+" "+getDateTime() );	
 				if (LogAdminCall() == true) {
-					executeQuery("INSERT INTO player_call_admin (player_id, player_name, command, text, time) VALUES (@0, @1, @2, @3, @4)",
+					executeQuery("INSERT INTO admin_log (player_id, player_name, command, text, time) VALUES (@0, @1, @2, @3, @4)",
         						 player.userID, EncodeNonAsciiCharacters(player.displayName), command, args, getDateTime() );
 				}
+            }
+            string words = Config["_AdminLogWords"].ToString();
+            string[] word = words.Split(new char[] {' ', ',' ,';','\t','\n', '\r'}, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string a in word) {
+                //PrintWarning(word);
+                if (args.StartsWith(a) && LogAdminCall() == true ) {
+                    //PrintWarning(a);
+                    executeQuery("INSERT INTO admin_log (player_id, player_name, command, text, time) VALUES (@0, @1, @2, @3, @4)",
+                                 player.userID, EncodeNonAsciiCharacters(player.displayName), command, args, getDateTime() );
+                }
             }
         }
 
@@ -479,8 +459,34 @@ namespace Oxide.Plugins {
 					executeQuery("INSERT INTO server_log_console (server_message, time) VALUES (@0, @1)",
 	            				 message, getDateTime());
 				}
+                if(name.ToLower()=="event"){
+                    PrintWarning(message);
+                }
 			}
 		}
+
+        // Log Chat messages
+        void OnPlayerChat(ConsoleSystem.Arg arg)  {   
+            if (LogChat() == true) {
+                BasePlayer player = (BasePlayer)arg.connection.player;
+                var pname = EncodeNonAsciiCharacters(player.displayName);
+                var pid = player.userID.ToString();
+                var pip = player.net.connection.ipaddress;
+                string message = arg.GetString(0);
+                if (hasPermission(player, "mod")) {
+                    // Admin
+                    //PrintWarning(pid+" "+pname+" "+pip+" "+message+" 1 "+getDateTime());
+                    executeQuery("INSERT INTO server_log_chat (player_id, player_name, player_ip, chat_message, admin, time) VALUES (@0, @1, @2, @3, @4, @5)",
+                                 pid, pname, pip, message,"1",getDateTime());
+
+                }
+                else {
+                    // Player
+                    executeQuery("INSERT INTO server_log_chat (player_id, player_name, player_ip, chat_message, admin, time) VALUES (@0, @1, @2, @3, @4, @5)",
+                                 pid, pname, pip, message,"0",getDateTime());
+                }               
+            }
+        }
 
         // log air planes spawned
 		void OnAirdrop(CargoPlane plane, Vector3 location) {
@@ -525,7 +531,7 @@ namespace Oxide.Plugins {
             	executeQuery("TRUNCATE server_log_airdrop");
             }
             if (LogAdminCall() == true) {
-            	executeQuery("TRUNCATE player_call_admin");
+            	executeQuery("TRUNCATE admin_log");
             }          
             PrintWarning("Empty table successful!");
         }
@@ -557,14 +563,24 @@ namespace Oxide.Plugins {
             	executeQuery("DROP TABLE server_log_airdrop");
             }
             if (LogAdminCall() == true) {
-            	executeQuery("DROP TABLE player_call_admin");
+            	executeQuery("DROP TABLE admin_log");
             }           
             PrintWarning("Drop tables successful!");
             PrintWarning("Reload plugin!!");
             //rust.RunServerCommand("oxide.unload MStats");	
         }
 
-
+        // Reload the plugin
+        [ConsoleCommand("mstats.reload")]
+        private void ReloadCommand(ConsoleSystem.Arg arg) {
+            try {
+                PrintWarning("Reloading plugin!");
+                rust.RunServerCommand("oxide.reload MStats");
+            }
+            catch (Exception ex){
+                PrintWarning(ex.Message);
+            }
+        }
         /*********************************
         **          Other Stuff         **
         *********************************/
@@ -591,7 +607,7 @@ namespace Oxide.Plugins {
         }
         
         bool LogAdminCall() {
-            return Convert.ToBoolean(Config["_LogCallAdmin"]);
+            return Convert.ToBoolean(Config["_AdminLog"]);
         }
 
         string GetDistance(BaseCombatEntity victim, BaseEntity attacker) {
@@ -675,7 +691,6 @@ namespace Oxide.Plugins {
             }
             return value = majorPluginUpdate+"."+minorPluginUpdate;
         } 
-
 
     }
 
