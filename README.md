@@ -3,10 +3,6 @@ Rust plugin that logs player and server statistics to MySql.
 
 Plugin creates database tables if not exists. NO SQL file needed!
 
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/master
 ------
 ###How to use and install the plugin:
 1. Download and put MStats in plugn folder.
@@ -14,7 +10,6 @@ Plugin creates database tables if not exists. NO SQL file needed!
 3. Reload the plugin.
 
 ------
-
 ### Plugin options
 All options is set to FALSE as default!<br>
 * _LogAridrops  - Logs cargo planes spawned.
@@ -23,6 +18,7 @@ All options is set to FALSE as default!<br>
 * _LogConsole   - Logs server messages/commands, etc admin spawn item.
 * _MySQL        - Enable this for plugin to work.
 * _AdminLogWords - Spesific words writen by players to be loged.
+
 ------
 ###Console Commands
 After Drop Table plugin must be reloaded for a new tables to be created!<br>
@@ -35,6 +31,7 @@ After Drop Table plugin must be reloaded for a new tables to be created!<br>
 * Truncate/Drop one table only.
 * Add configurable word list to _LogCallAdmin not only listen after admin word.
 
+------
 ###Version info!
 **1.0.1** = **x.x.d**<br>
 **x.x** = Plugin version **1.0** <br>
