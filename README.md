@@ -12,20 +12,18 @@ Plugin creates database tables if not exists. NO SQL file needed!
 ------
 
 ### Plugin options
+All options is set to FALSE as default!<br>
 * _LogAridrops  - Logs cargo planes spawned.
 * _LogCallAdmin - Logs if player call for admin.
 * _LogChat      - Logs Global chat.
 * _LogConsole   - Logs server messages/commands, etc admin spawn item
 * _MySQL        - Enable this for plugin to work.
-<br>
-All options is set to FALSE as default!
 
 ------
 ###Console Commands
+After Drop Table plugin must be reloaded for a new tables to be created!<br>
 * **mstats.empty**  - Truncate tables. Clear all tables from data.
 * **mstats.drop**   - Drops all tables. Removes all table from database.
-<br>
-After Drop Table plugin must be reloaded for a new tables to be created!
 
 ------
 ###TO-DO List:
