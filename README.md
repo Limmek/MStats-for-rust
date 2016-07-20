@@ -29,7 +29,6 @@ After Drop Table plugin must be reloaded for a new tables to be created!<br>
 ###TO-DO List:
 * Web template.
 * Truncate/Drop one table only.
-* Add configurable word list to _LogCallAdmin not only listen after admin word.
 
 ------
 ###Version info!
