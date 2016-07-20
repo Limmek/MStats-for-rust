@@ -1,9 +1,12 @@
-# MySql Chat Log for Rust
+# MySql Stats Log for Rust
 Rust plugin that logs player and server statistics to MySql.
 
 Plugin creates database tables if not exists. NO SQL file needed!
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/master
 ------
 ###How to use and install the plugin:
 1. Download and put MStats in plugn folder.
@@ -13,7 +16,7 @@ Plugin creates database tables if not exists. NO SQL file needed!
 ------
 
 ### Plugin options
-Default false
+All options is set to FALSE as default!<br>
 * _LogAridrops  - Logs cargo planes spawned.
 * _AdminLog - Logs if player call for admin.
 * _LogChat      - Logs Global chat.
@@ -22,14 +25,21 @@ Default false
 * _AdminLogWords - Spesific words writen by players to be loged.
 ------
 ###Console Commands
+After Drop Table plugin must be reloaded for a new tables to be created!<br>
 * **mstats.empty**  - Truncate tables. Clear all tables from data.
 * **mstats.drop**   - Drops all tables. Removes all table from database.
-After Drop Table plugin must be reloaded for a new tables to be created!
 
 ------
 ###TO-DO List:
 * Web template.
 * Truncate/Drop one table only.
+* Add configurable word list to _LogCallAdmin not only listen after admin word.
+
+###Version info!
+**1.0.1** = **x.x.d**<br>
+**x.x** = Plugin version **1.0** <br>
+**d** = Database version **1**<br>
+The database version is for the plugin to respond on update if an update on tables is made and might need to be removed.
 
 ------
 If you have any problems with the plugin please leave a comment or send me a message!
