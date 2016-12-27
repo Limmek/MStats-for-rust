@@ -1,9 +1,14 @@
+// Reference: Oxide.Core.MySql
+// Reference: Oxide.Core.SQLite
+
 using System;
 using System.Text;
 using System.Net;
 using Oxide.Core;
 using Oxide.Core.Database;
-using Oxide.Ext.MySql;
+using Oxide.Core.Plugins;
+using Oxide.Core.Libraries;
+using Oxide.Core.Configuration;
 using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
@@ -14,8 +19,9 @@ namespace Oxide.Plugins {
     
     public class MStats : RustPlugin { 	
     	private Dictionary<BasePlayer, Int32> loginTime = new Dictionary<BasePlayer, int>();
-    	private readonly Ext.MySql.Libraries.MySql _mySql = Interface.GetMod().GetLibrary<Ext.MySql.Libraries.MySql>();
-		private Connection _mySqlConnection = null;
+    	//private readonly Core.MySql.Libraries.MySql _mySql = Interface.GetMod().GetLibrary<Core.MySql.Libraries.MySql>();
+		readonly Core.MySql.Libraries.MySql _mySql = new Core.MySql.Libraries.MySql();
+        private Connection _mySqlConnection = null;
 
 		//Config
 		protected override void LoadDefaultConfig() {
@@ -63,7 +69,6 @@ namespace Oxide.Plugins {
 	        	//PrintWarning("Creating tables...");
             	//executeQuery("CREATE DATABASE IF NOT EXISTS mstats");
             	executeQuery("CREATE TABLE IF NOT EXISTS player_stats 			(id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, player_ip VARCHAR(128) NULL, player_state INT(1) NULL DEFAULT '0', player_online_time BIGINT(20) DEFAULT '0', player_last_login TIMESTAMP NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`) ) ENGINE=InnoDB;");   
-            	executeQuery("CREATE TABLE IF NOT EXISTS player_xp 				(id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_xp_total FLOAT DEFAULT '0', player_xp_spent FLOAT DEFAULT '0', PRIMARY KEY (`player_id`), UNIQUE KEY (`id`) ) ENGINE=InnoDB;");
             	executeQuery("CREATE TABLE IF NOT EXISTS player_resource_gather (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, resource VARCHAR(255) NULL, amount INT(32), date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerGather` (`player_id`,`resource`,`date`) ) ENGINE=InnoDB;");
             	executeQuery("CREATE TABLE IF NOT EXISTS player_crafted_item 	(id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, item VARCHAR(128), amount INT(32), date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerItem` (`player_id`,`item`,`date`) ) ENGINE=InnoDB;");
             	executeQuery("CREATE TABLE IF NOT EXISTS player_bullets_fired	(id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, bullet_name VARCHAR(128) NULL, bullets_fired INT(32) DEFAULT '1', weapon_name VARCHAR(128) NULL, date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerBullet` (`player_id`,`bullet_name`,`weapon_name`,`date`) ) ENGINE=InnoDB;");
@@ -144,35 +149,6 @@ namespace Oxide.Plugins {
                 _mySqlConnection = null;
             });
         }
-
-
-        /*********************************
-        **       Experience Hooks       **
-        *********************************/
-
-    /*		STOPT WORKED FOR SOME REASON???
-        //Player gain experience
-		void OnXpEarned(ulong id, float amount, string source)
-		{
-			Puts(amount.ToString()+source);
-		    executeQuery("INSERT INTO player_xp(player_id, player_xp_total) VALUES (@0, @1)"+
-		    	"ON DUPLICATE KEY UPDATE player_xp_total = player_xp_total + " + amount, id,amount );
-		    	   
-		}
-	*/
-
-		//Player gain experience
-		void OnXpEarn(ulong id, float amount, string source) {
-			//Puts(amount.ToString()+source);
-		    executeQuery("INSERT INTO player_xp(player_id, player_xp_total) VALUES (@0, @1)"+
-		    	"ON DUPLICATE KEY UPDATE player_xp_total = player_xp_total + " + amount, id,amount +" WHERE player_id ="+id);
-		}
-		
-		//Player spend experience
-		void OnXpSpent(ulong id, int amount, string item) {
-		    executeQuery("INSERT INTO player_xp(player_id, player_xp_spent) VALUES (@0, @1)"+
-		    	"ON DUPLICATE KEY UPDATE player_xp_spent = player_xp_spent + " + amount, id,amount +" WHERE player_id ="+id);
-		}
 
 
         /*********************************
@@ -499,7 +475,6 @@ namespace Oxide.Plugins {
         [ConsoleCommand("mstats.empty")]
         private void EmptyTableCommand(ConsoleSystem.Arg arg) {
             executeQuery("TRUNCATE player_stats");
-            executeQuery("TRUNCATE player_xp");
             executeQuery("TRUNCATE player_resource_gather");
             executeQuery("TRUNCATE player_crafted_item");
             executeQuery("TRUNCATE player_bullets_fired");
@@ -531,7 +506,6 @@ namespace Oxide.Plugins {
         [ConsoleCommand("mstats.drop")]
         private void DropTableCommand(ConsoleSystem.Arg arg) {
             executeQuery("DROP TABLE player_stats");
-            executeQuery("DROP TABLE player_xp");
             executeQuery("DROP TABLE player_resource_gather");
             executeQuery("DROP TABLE player_crafted_item");
             executeQuery("DROP TABLE player_bullets_fired");
