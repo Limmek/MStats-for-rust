@@ -388,10 +388,10 @@ namespace Oxide.Plugins {
 
         // log Server commands 
         void OnServerCommand(ConsoleSystem.Arg arg) {
-            if (arg.connection == null) return;
-            var command = arg.cmd.namefull;
+            if (arg.Connection == null) return;
+            var command = arg.cmd.FullName;
             var args = arg.GetString(0).ToLower();
-            BasePlayer player = (BasePlayer)arg.connection.player;
+            BasePlayer player = (BasePlayer)arg.Connection.player;
             //player use /command
             if (args.StartsWith("/") ) {
             	//PrintWarning( player.userID+" "+player.displayName+" "+command+" "+args+" "+getDateTime() );
@@ -436,7 +436,7 @@ namespace Oxide.Plugins {
         // Log Chat messages
         void OnPlayerChat(ConsoleSystem.Arg arg)  {   
             if (LogChat() == true) {
-                BasePlayer player = (BasePlayer)arg.connection.player;
+                BasePlayer player = (BasePlayer)arg.Connection.player;
                 var pname = EncodeNonAsciiCharacters(player.displayName);
                 var pid = player.userID.ToString();
                 var pip = player.net.connection.ipaddress;
