@@ -1,11 +1,9 @@
-// Reference: Oxide.Core.MySql
-// Reference: Oxide.Core.SQLite
-
 using System;
 using System.Text;
 using System.Net;
 using Oxide.Core;
 using Oxide.Core.Database;
+using Oxide.Core.MySql;
 using Oxide.Core.Plugins;
 using Oxide.Core.Libraries;
 using Oxide.Core.Configuration;
@@ -14,7 +12,7 @@ using UnityEngine;
 using System.Linq;
 
 namespace Oxide.Plugins {
-    [Info("MStats", "Limmek", "1.2.1", ResourceId = 123)]
+    [Info("MStats", "Limmek", "1.3.1"/*, ResourceId = 0*/)]
     [Description("Logs player statistics and other server stuff to MySql")]
     
     public class MStats : RustPlugin { 	
@@ -38,7 +36,7 @@ namespace Oxide.Plugins {
             Config["_LogAridrops"] = false;
             Config["_AdminLog"] = false;
             Config["_AdminLogWords"] = "admin, admn, kim, rasist, fuck";
-            Config["Version"] = "1.2.1";     
+            Config["Version"] = "1.3.1";     
             SaveConfig();
         }
 
@@ -157,7 +155,7 @@ namespace Oxide.Plugins {
 
         //Player login
         void OnPlayerInit(BasePlayer player) {
-            if (!player.IsConnected())
+            if (!player.IsConnected)
                 return;
 
             string properName = EncodeNonAsciiCharacters(player.displayName);
@@ -441,7 +439,7 @@ namespace Oxide.Plugins {
                 var pid = player.userID.ToString();
                 var pip = player.net.connection.ipaddress;
                 string message = arg.GetString(0);
-                if (player.IsAdmin()) {
+                if (player.IsAdmin) {
                     // Admin
                     //PrintWarning(pid+" "+pname+" "+pip+" "+message+" 1 "+getDateTime());
                     executeQuery("INSERT INTO server_log_chat (player_id, player_name, player_ip, chat_message, admin, time) VALUES (@0, @1, @2, @3, @4, @5)",
