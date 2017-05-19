@@ -95,7 +95,6 @@ namespace Oxide.Plugins {
             catch (Exception ex) {
                 Puts(ex.ToString());
             }
-
         }
 
         void Init() {
