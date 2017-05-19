@@ -288,7 +288,7 @@ namespace Oxide.Plugins {
                         throw new Exception(ex.Message);
                     }
                 }
-                else if (entity is BaseNPC) {
+                else if (entity is BaseNpc) {
                     try {
                         string weapon = "Unknown";
                         try {
