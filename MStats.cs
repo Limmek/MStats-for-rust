@@ -208,6 +208,7 @@ namespace Oxide.Plugins {
                "ON DUPLICATE KEY UPDATE amount = amount +"+item.amount, task.owner.userID, item.info.displayName.english, item.amount, getDate() );
         }
 
+        
         // Player place item or building
 		void OnEntityBuilt(Planner plan, GameObject go, HeldEntity heldentity) {
 			string name = plan.GetOwnerPlayer().displayName; //Playername
@@ -220,10 +221,18 @@ namespace Oxide.Plugins {
                         "ON DUPLICATE KEY UPDATE amount = amount + 1", playerID, name, item_name, getDate() );
             }else if (plan.isTypeDeployable) {
             	string item_name = plan.GetOwnerItemDefinition().displayName.english;
-            	//Puts(playerID + name + item_name + getDate());
+            	Puts(playerID + name + item_name + getDate());
                 executeQuery("INSERT INTO player_place_deployable (player_id, player_name, deployable, date) VALUES (@0, @1, @2, @3)" +
                         "ON DUPLICATE KEY UPDATE amount = amount + 1", playerID, name, item_name, getDate() );
             }
+            if (plan.GetOwnerItemDefinition().shortname == "cupboard.tool")
+            {
+                var cupboard = go.GetComponent<BuildingPrivlidge>();
+                BasePlayer player = plan.GetOwnerPlayer();
+                OnCupboardAuthorize(cupboard, player);
+                OnCupboardAuthorize(cupboard, player); // Dirty fix for set access to 1
+            }
+
 		}
 
 
@@ -354,7 +363,7 @@ namespace Oxide.Plugins {
 		    var priv = privilege.ToString();
 		    var pid = player.userID.ToString();
 		    var pname = player.displayName.ToString();
-		    //PrintWarning(priv+" "+pid+" "+pname);
+		    PrintWarning(priv+" "+pid+" "+pname);
             executeQuery("INSERT INTO player_authorize_list (player_id, player_name, cupboard, time) VALUES (@0, @1, @2, @3)" +
                          "ON DUPLICATE KEY UPDATE access = 1", pid, pname, priv, getDateTime());
 		}
