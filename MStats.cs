@@ -1,19 +1,20 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Net;
+using System.Linq;
 using Oxide.Core;
 using Oxide.Core.Database;
 using Oxide.Core.MySql;
 using Oxide.Core.Plugins;
 using Oxide.Core.Libraries;
 using Oxide.Core.Configuration;
-using System.Collections.Generic;
 using UnityEngine;
-using System.Linq;
+using ConVar;
 
 namespace Oxide.Plugins
 {
-    [Info("MStats", "Limmek", "1.4.2"/*, ResourceId = 0*/)]
+    [Info("MStats", "Limmek", "1.5.3"/*, ResourceId = 0*/)]
     [Description("Logs player statistics and other server stuff to MySql")]
 
     public class MStats : RustPlugin
@@ -42,7 +43,7 @@ namespace Oxide.Plugins
             Config["_LogServerPatrolhelicopter"] = false;
             Config["_LogServerbradleyapc"] = false;
             Config["_LogServerch47"] = false;
-            Config["Version"] = "1.4.2";
+            Config["Version"] = "1.5.3";
             SaveConfig();
         }
 
@@ -90,11 +91,9 @@ namespace Oxide.Plugins
                 executeQuery("CREATE TABLE IF NOT EXISTS player_place_deployable (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(128) NULL, deployable VARCHAR(128) NULL, amount INT(32) NULL DEFAULT '1', date DATE NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`,`date`,`deployable`) ) ENGINE=InnoDB;");
                 executeQuery("CREATE TABLE IF NOT EXISTS player_authorize_list (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(128) NULL, cupboard VARCHAR(128) NULL, access INT(32) NULL DEFAULT '0', time TIMESTAMP NULL, PRIMARY KEY (`id`), UNIQUE (`Cupboard`) ) ENGINE=InnoDB;");
                 executeQuery("CREATE TABLE IF NOT EXISTS player_connect_log (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(128) NULL, state VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
-                if (LogAiredrop()) {
-					executeQuery("CREATE TABLE IF NOT EXISTS server_log_airdrop	(id INT(11) NOT NULL AUTO_INCREMENT, plane VARCHAR(128) NULL, location VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
-				}
+				executeQuery("CREATE TABLE IF NOT EXISTS player_chat_command (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(128) NULL, command VARCHAR(128) NULL, text VARCHAR(255) NULL DEFAULT NULL, date TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`,`date`) ) ENGINE=InnoDB;");
 				if (LogAdminCall()) {
-					executeQuery("CREATE TABLE IF NOT EXISTS admin_log	(id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(128) NULL, command VARCHAR(128) NULL, text VARCHAR(255) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
+					executeQuery("CREATE TABLE IF NOT EXISTS admin_log	(id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(128) NULL, player_ip VARCHAR(128) NULL, text VARCHAR(255) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
 				}
                 if (LogChat())
                 {
@@ -168,10 +167,6 @@ namespace Oxide.Plugins
         {
             StartConnection();
             createTablesOnConnect();
-            foreach (var player in BasePlayer.activePlayerList)
-            {
-                OnPlayerInit(player);
-            }
         }
 
         //Plugin unloaded
@@ -194,7 +189,7 @@ namespace Oxide.Plugins
         *********************************/
 
         //Player login
-        void OnPlayerInit(BasePlayer player)
+        void OnPlayerConnected(BasePlayer player)
         {
             if (!player.IsConnected)
                 return;
@@ -470,33 +465,27 @@ namespace Oxide.Plugins
         void OnServerCommand(ConsoleSystem.Arg arg) {
             if (arg.Connection == null) return;
             var command = arg.cmd.FullName;
-            var args = arg.GetString(0).ToLower();
-            BasePlayer player = (BasePlayer)arg.Connection.player;
-            //player use /command
-            if (args.StartsWith("/") ) {
-            	//PrintWarning( player.userID+" "+player.displayName+" "+command+" "+args+" "+getDateTime() );
-            	executeQuery("INSERT INTO player_chat_command (player_id, player_name, command, text, time) VALUES (@0, @1, @2, @3, @4)",
-        					 player.userID, EncodeNonAsciiCharacters(player.displayName), command, args, getDateTime() );
+            var args = arg.GetString(0);
+            BasePlayer player = (BasePlayer)arg.Connection.player;            
+            executeQuery("INSERT INTO player_chat_command (player_id, player_name, command, text, date) VALUES (@0, @1, @2, @3, @4)",
+                player.userID,
+                EncodeNonAsciiCharacters(player.displayName),
+                command,
+                args,
+                getDateTime()
+            );
+        }
 
-            }
-            //player ask after admin
-            else if (args.Contains("admin") ) {
-            	//PrintWarning( player.userID+" "+player.displayName+" "+command+" "+args+" "+getDateTime() );	
-				if (LogAdminCall() == true) {
-					executeQuery("INSERT INTO admin_log (player_id, player_name, command, text, time) VALUES (@0, @1, @2, @3, @4)",
-        						 player.userID, EncodeNonAsciiCharacters(player.displayName), command, args, getDateTime() );
-				}
-            }
-            string words = Config["_AdminLogWords"].ToString();
-            string[] word = words.Split(new char[] {' ', ',' ,';','\t','\n', '\r'}, StringSplitOptions.RemoveEmptyEntries);
-            foreach (string a in word) {
-                //PrintWarning(word);
-                if (args.Contains(a) && LogAdminCall() == true ) {
-                    //PrintWarning(a);
-                    executeQuery("INSERT INTO admin_log (player_id, player_name, command, text, time) VALUES (@0, @1, @2, @3, @4)",
-                                 player.userID, EncodeNonAsciiCharacters(player.displayName), command, args, getDateTime() );
-                }
-            }
+        // log player commands
+        void OnPlayerCommand(BasePlayer player, string command, string[] args)
+        {
+            executeQuery("INSERT INTO player_chat_command (player_id, player_name, command, text, date) VALUES (@0, @1, @2, @3, @4)",
+                player.userID,
+                EncodeNonAsciiCharacters(player.displayName),
+                command,
+                null,
+                getDateTime()
+            );
         }
 
         // Log server messages
@@ -504,32 +493,54 @@ namespace Oxide.Plugins
         {
             if (LogConsole() == true)
             {
-                if (name.ToLower() == "server")
+                if(name == "SERVER")
                 {
                     //PrintWarning(name+" "+message+" "+getDateTime());
-                    executeQuery("INSERT INTO server_log_console (server_message, time) VALUES (@0, @1)",
-                                 message, getDateTime());
-                }
-                if (name.Contains("assets"))
-                {
-                    PrintWarning(message);
+                    executeQuery("INSERT INTO server_log_console (server_message, time) VALUES (@0, @1)", message, getDateTime());
                 }
             }
         }
 
-        // Log Chat messages
-        void OnPlayerChat(ConsoleSystem.Arg arg)
+
+        void OnPlayerChat(BasePlayer player, string message, Chat.ChatChannel channel)
         {
             if (LogChat())
             {
-                BasePlayer player = (BasePlayer)arg.Connection.player;
-                var pname = EncodeNonAsciiCharacters(player.displayName);
-                var pid = player.userID.ToString();
-                var pip = player.net.connection.ipaddress;
-                PrintWarning(player.IsAdmin.ToString());
-                string message = arg.GetString(0);
                 executeQuery("INSERT INTO server_log_chat (player_id, player_name, player_ip, chat_message, admin, time) VALUES (@0, @1, @2, @3, @4, @5)",
-                                 pid, pname, pip, message, player.IsAdmin.ToString(), getDateTime());
+                    player.userID,
+                    EncodeNonAsciiCharacters(player.displayName),
+                    player.net.connection.ipaddress,
+                    message,
+                    player.IsAdmin,
+                    getDateTime());
+            }
+            //if player ask after admin
+            if (message.Contains("admin") ) {
+                if (LogAdminCall() == true) {
+                    executeQuery("INSERT INTO admin_log (player_id, player_name, player_ip, text, time) VALUES (@0, @1, @2, @3, @4)",
+                        player.userID,
+                        EncodeNonAsciiCharacters(player.displayName),
+                        player.net.connection.ipaddress,
+                        message,
+                        getDateTime()
+                    );
+                }
+            }else { //check message after keywords
+                string words = Config["_AdminLogWords"].ToString();
+                string[] word = words.Split(new char[] {' ', ',' ,';','\t','\n', '\r'}, StringSplitOptions.RemoveEmptyEntries);
+                foreach (string a in word) {
+                    //PrintWarning(word);
+                    if (message.Contains(a) && LogAdminCall() == true ) {
+                        //PrintWarning(a);
+                        executeQuery("INSERT INTO admin_log (player_id, player_name, player_ip, text, time) VALUES (@0, @1, @2, @3, @4)",
+                            player.userID,
+                            EncodeNonAsciiCharacters(player.displayName),
+                            player.net.connection.ipaddress,
+                            message,
+                            getDateTime()
+                        );
+                    }
+                }                
             }
         }
 
@@ -581,6 +592,105 @@ namespace Oxide.Plugins
             {
                 PrintWarning(ex.Message);
             }
+        }
+
+        //Drop tables
+        [ConsoleCommand("mstats.drop")]
+        private void DropTableCommand(ConsoleSystem.Arg arg) {
+            executeQuery("DROP TABLE player_stats");
+            executeQuery("DROP TABLE player_resource_gather");
+            executeQuery("DROP TABLE player_crafted_item");
+            executeQuery("DROP TABLE player_bullets_fired");
+            executeQuery("DROP TABLE player_kill_animal");
+            executeQuery("DROP TABLE player_kill");
+            executeQuery("DROP TABLE player_death");
+            executeQuery("DROP TABLE player_destroy_building");
+            executeQuery("DROP TABLE player_place_building");
+            executeQuery("DROP TABLE player_place_deployable");
+            executeQuery("DROP TABLE player_authorize_list");
+            executeQuery("DROP TABLE player_connect_log");
+            executeQuery("DROP TABLE player_chat_command");
+            if (LogAdminCall()) {
+                executeQuery("DROP TABLE admin_log");
+            }
+            if (LogChat())
+            {
+                executeQuery("DROP TABLE server_log_chat");
+            }
+            if (LogConsole())
+            {
+                executeQuery("DROP TABLE server_log_console");
+            }
+            if (LogAiredrop())
+            {
+                executeQuery("DROP TABLE server_log_airdrop");
+            }
+            if (LogServerPatrolhelicopter())
+            {
+                executeQuery("DROP TABLE server_log_patrolhelicopter");
+            }
+            if (LogServerCargoship())
+            {
+                executeQuery("DROP TABLE server_log_cargoship");
+            }
+            if (LogServerch47())
+            {
+                executeQuery("DROP TABLE server_log_ch47");
+            }
+            if (LogServerbradleyapc())
+            {
+                executeQuery("DROP TABLE server_log_bradleyapc");
+            }          
+            PrintWarning("Drop tables successful!\nPlease reload the plugin to create new tabels");
+        }
+        //Drop tables
+        [ConsoleCommand("mstats.empty")]
+        private void EmptyTableCommand(ConsoleSystem.Arg arg) {
+            executeQuery("TRUNCATE TABLE player_stats");
+            executeQuery("TRUNCATE TABLE player_resource_gather");
+            executeQuery("TRUNCATE TABLE player_crafted_item");
+            executeQuery("TRUNCATE TABLE player_bullets_fired");
+            executeQuery("TRUNCATE TABLE player_kill_animal");
+            executeQuery("TRUNCATE TABLE player_kill");
+            executeQuery("TRUNCATE TABLE player_death");
+            executeQuery("TRUNCATE TABLE player_destroy_building");
+            executeQuery("TRUNCATE TABLE player_place_building");
+            executeQuery("TRUNCATE TABLE player_place_deployable");
+            executeQuery("TRUNCATE TABLE player_authorize_list");
+            executeQuery("TRUNCATE TABLE player_connect_log");
+            executeQuery("TRUNCATE TABLE player_chat_command");
+            if (LogAdminCall()) {
+                executeQuery("TRUNCATE TABLE admin_log");
+            }
+            if (LogChat())
+            {
+                executeQuery("TRUNCATE TABLE server_log_chat");
+            }
+            if (LogConsole())
+            {
+                executeQuery("TRUNCATE TABLE server_log_console");
+            }
+            if (LogAiredrop())
+            {
+                executeQuery("TRUNCATE TABLE server_log_airdrop");
+            }
+            if (LogServerPatrolhelicopter())
+            {
+                executeQuery("TRUNCATE TABLE server_log_patrolhelicopter");
+            }
+            if (LogServerCargoship())
+            {
+                executeQuery("TRUNCATE TABLE server_log_cargoship");
+            }
+            if (LogServerch47())
+            {
+                executeQuery("TRUNCATE TABLE server_log_ch47");
+            }
+            if (LogServerbradleyapc())
+            {
+                executeQuery("TRUNCATE TABLE server_log_bradleyapc");
+            }          
+            PrintWarning("Empty tables successful!\nPlease reload the plugin to create new tabels");
         }
 
         /*********************************
