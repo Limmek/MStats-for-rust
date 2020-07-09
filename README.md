@@ -12,7 +12,7 @@ Plugin creates database tables if not exists. NO SQL file needed!
 ------
 ### Plugin options
 All options is set to FALSE as default!<br>
-* TurncateDataOnMonthlyWipe - Clear database on rust force wipe. (*Default* - **10 minutes**)
+* TurncateDataOnMonthlyWipe - Clear database on rust force wipe. (*Default* - **false**)
 * TurncateDataOnMapWipe - Clear database on map change. (*Default* - **false**)
 * _LogAridrops  - Logs cargo planes spawned.
 * _AdminLog - Logs if player call for admin.
