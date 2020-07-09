@@ -1,29 +1,41 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using System.Net;
 using System.Linq;
+using Facepunch;
 using Oxide.Core;
 using Oxide.Core.Database;
 using Oxide.Core.MySql;
 using Oxide.Core.Plugins;
 using Oxide.Core.Libraries;
 using Oxide.Core.Configuration;
+using Oxide.Game.Rust;
+using Rust;
 using UnityEngine;
 using ConVar;
 
 namespace Oxide.Plugins
 {
-    [Info("MStats", "Limmek", "1.5.3"/*, ResourceId = 0*/)]
+    [Info("MStats", "Limmek", "1.6.3"/*, ResourceId = 0*/)]
     [Description("Logs player statistics and other server stuff to MySql")]
 
     public class MStats : RustPlugin
     {
+        private int RustNetwork = 0;
+        private int RustSave = 0;
+        private int RustWorldSize = 0;
+        private int RustSeed = 0;
+        private bool ForceDatabaseCreation = false;
+        private bool TurncateDataOnMonthlyWipe = false;
+        private bool TurncateDataOnMapWipe = false;
+
         private Dictionary<BasePlayer, Int32> loginTime = new Dictionary<BasePlayer, int>();
         private readonly Core.MySql.Libraries.MySql _mySql = new Core.MySql.Libraries.MySql();
         private Connection _mySqlConnection = null;
 
-        //Config
+        //Config TODO CREATE SEPARATE CLASSES.
         protected override void LoadDefaultConfig()
         {
             PrintWarning("Creating a new configuration file");
@@ -33,6 +45,9 @@ namespace Oxide.Plugins
             Config["Port"] = 3306;
             Config["Username"] = "username";
             Config["Password"] = "password";
+            Config["ForceDatabaseCreation"] = false;
+            Config["TurncateDataOnMonthlyWipe"] = false;
+            Config["TurncateDataOnMapWipe"] = false;
             Config["_AdminLog"] = false;
             Config["_AdminLogWords"] = "admin, mod, fuck";
             Config["_MySQL"] = false;
@@ -78,7 +93,10 @@ namespace Oxide.Plugins
             try
             {
                 //PrintWarning("Creating tables...");
-                executeQuery("CREATE DATABASE IF NOT EXISTS mstats");
+                if (Convert.ToBoolean(Config["ForceDatabaseCreation"]) == true)
+                {
+                    executeQuery("CREATE DATABASE IF NOT EXISTS " + Config["Database"].ToString());
+                }
                 executeQuery("CREATE TABLE IF NOT EXISTS player_stats (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, player_ip VARCHAR(128) NULL, player_state INT(1) NULL DEFAULT '0', player_online_time BIGINT(20) DEFAULT '0', player_last_login TIMESTAMP NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`) ) ENGINE=InnoDB;");
                 executeQuery("CREATE TABLE IF NOT EXISTS player_resource_gather (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, resource VARCHAR(255) NULL, amount INT(32), date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerGather` (`player_id`,`resource`,`date`) ) ENGINE=InnoDB;");
                 executeQuery("CREATE TABLE IF NOT EXISTS player_crafted_item (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, item VARCHAR(128), amount INT(32), date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerItem` (`player_id`,`item`,`date`) ) ENGINE=InnoDB;");
@@ -131,11 +149,17 @@ namespace Oxide.Plugins
 
         }
 
-        void Init()
+        void OnServerInitialized()
         {
             #if !RUST
                 throw new NotSupportedException("This plugin does not support this game");
             #endif
+
+            RustNetwork   = Convert.ToInt32(Protocol.network);
+            RustSave      = Convert.ToInt32(Protocol.save);
+            RustWorldSize = ConVar.Server.worldsize;
+            RustSeed      = ConVar.Server.seed;
+            Puts($"Game Version: {RustNetwork}.{RustSave}, size: {RustWorldSize}, seed: {RustSeed}");
 
             string curVersion = Version.ToString();
             string[] version = curVersion.Split('.');
@@ -158,7 +182,47 @@ namespace Oxide.Plugins
                 SaveConfig();
             }
 
+            
+            
+            DynamicConfigFile dataFile = Interface.Oxide.DataFileSystem.GetDatafile(nameof(MStats));
+            if (dataFile["RustNetwork"] == null)
+            {
+                dataFile["RustNetwork"] = RustNetwork;
+                dataFile["RustSave"] = RustSave;
+                dataFile["RustWorldSize"] = RustWorldSize;
+                dataFile["RustSeed"] = RustSeed;
+                dataFile.Save();
+            }
 
+            if(Convert.ToBoolean(Config["TurncateDataOnMonthlyWipe"]) == true)
+            {
+                if (Convert.ToInt32(dataFile["RustNetwork"]) != RustNetwork)
+                {
+                    Puts("Detected monthly rust update. Turncating data.");
+                    dataFile["RustNetwork"] = RustNetwork;
+                    dataFile["RustSave"] = RustSave;
+                    dataFile["RustWorldSize"] = RustWorldSize;
+                    dataFile["RustSeed"] = RustSeed;
+                    dataFile.Save();
+
+                    TurncateData();
+                }
+            }
+
+            if(Convert.ToBoolean(Config["TurncateDataOnMapWipe"]) == true)
+            {
+                if (Convert.ToInt32(dataFile["RustSeed"]) != RustSeed)
+                {
+                    Puts("Detected monthly rust update. Turncating data.");
+                    dataFile["RustNetwork"] = RustNetwork;
+                    dataFile["RustSave"] = RustSave;
+                    dataFile["RustWorldSize"] = RustWorldSize;
+                    dataFile["RustSeed"] = RustSeed;
+                    dataFile.Save();
+
+                    TurncateData();
+                }
+            }
 
         }
 
@@ -643,9 +707,9 @@ namespace Oxide.Plugins
             }          
             PrintWarning("Drop tables successful!\nPlease reload the plugin to create new tabels");
         }
-        //Drop tables
-        [ConsoleCommand("mstats.empty")]
-        private void EmptyTableCommand(ConsoleSystem.Arg arg) {
+        
+        private void TurncateData()
+        {
             executeQuery("TRUNCATE TABLE player_stats");
             executeQuery("TRUNCATE TABLE player_resource_gather");
             executeQuery("TRUNCATE TABLE player_crafted_item");
@@ -689,7 +753,13 @@ namespace Oxide.Plugins
             if (LogServerbradleyapc())
             {
                 executeQuery("TRUNCATE TABLE server_log_bradleyapc");
-            }          
+            }
+        }
+
+        //Drop tables
+        [ConsoleCommand("mstats.empty")]
+        private void EmptyTableCommand(ConsoleSystem.Arg arg) {
+            TurncateData();
             PrintWarning("Empty tables successful!\nPlease reload the plugin to create new tabels");
         }
 
