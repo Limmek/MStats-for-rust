@@ -4,7 +4,7 @@ Rust plugin that logs player and server statistics to MySql.
 Plugin creates database tables if not exists. NO SQL file needed!
 
 ------
-###How to use and install the plugin:
+### How to use and install the plugin:
 1. Download and put MStats in plugn folder.
 2. Edit the config file (MStats.json).
 3. Reload the plugin.
@@ -26,14 +26,14 @@ All options is set to FALSE as default!<br>
 * _LogServerch47 - Logs ch47 spawned.
 
 ------
-###Console Commands
+### Console Commands
 After Drop Table plugin must be reloaded for a new tables to be created!<br>
 * **mstats.reload**  - Reload the plugin.
 * **mstats.empty**  - Truncate tables. Clear all tables from data.
 * **mstats.drop**   - Drops all tables. Removes all table from database.
 
 ------
-###Version info!
+### Version info!
 **1.0.1** = **x.x.d**<br>
 **x.x** = Plugin version **1.0** <br>
 **d** = Database version **1**<br>
