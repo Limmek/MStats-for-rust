@@ -18,7 +18,7 @@ using ConVar;
 
 namespace Oxide.Plugins
 {
-    [Info("MStats", "Limmek", "1.1.4"/*, ResourceId = 0*/)]
+    [Info("MStats", "Limmek", "1.7.4"/*, ResourceId = 0*/)]
     [Description("Logs player statistics and other server stuff to MySql")]
 
     public class MStats : RustPlugin
