@@ -18,7 +18,7 @@ using ConVar;
 
 namespace Oxide.Plugins
 {
-    [Info("MStats", "Limmek", "1.6.3"/*, ResourceId = 0*/)]
+    [Info("MStats", "Limmek", "1.1.4"/*, ResourceId = 0*/)]
     [Description("Logs player statistics and other server stuff to MySql")]
 
     public class MStats : RustPlugin
@@ -52,6 +52,7 @@ namespace Oxide.Plugins
             Config["_AdminLogWords"] = "admin, mod, fuck";
             Config["_MySQL"] = false;
             Config["_LogChat"] = false;
+            Config["_LogTeamChat"] = false;
             Config["_LogConsole"] = false;
             Config["_LogAridrops"] = false;
             Config["_LogServerCargoship"] = false;
@@ -116,6 +117,10 @@ namespace Oxide.Plugins
                 if (LogChat())
                 {
                     executeQuery("CREATE TABLE IF NOT EXISTS server_log_chat (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(128) NULL, player_ip VARCHAR(128), chat_message VARCHAR(255), admin INT(32) NULL DEFAULT '0', time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
+                }
+                if (LogTeamChat())
+                {
+                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_chat_team (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(128) NULL, player_ip VARCHAR(128), chat_message VARCHAR(255), admin INT(32) NULL DEFAULT '0', time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
                 }
                 if (LogConsole())
                 {
@@ -568,7 +573,7 @@ namespace Oxide.Plugins
 
         void OnPlayerChat(BasePlayer player, string message, Chat.ChatChannel channel)
         {
-            if (LogChat())
+            if (LogChat() && channel.ToString() == "Global")
             {
                 executeQuery("INSERT INTO server_log_chat (player_id, player_name, player_ip, chat_message, admin, time) VALUES (@0, @1, @2, @3, @4, @5)",
                     player.userID,
@@ -578,6 +583,18 @@ namespace Oxide.Plugins
                     player.IsAdmin,
                     getDateTime());
             }
+            
+            if (LogTeamChat() && channel.ToString() == "Team")
+            {
+                executeQuery("INSERT INTO server_log_chat_team (player_id, player_name, player_ip, chat_message, admin, time) VALUES (@0, @1, @2, @3, @4, @5)",
+                    player.userID,
+                    EncodeNonAsciiCharacters(player.displayName),
+                    player.net.connection.ipaddress,
+                    message,
+                    player.IsAdmin,
+                    getDateTime());
+            }
+            
             //if player ask after admin
             if (message.Contains("admin") ) {
                 if (LogAdminCall() == true) {
@@ -681,6 +698,10 @@ namespace Oxide.Plugins
             {
                 executeQuery("DROP TABLE server_log_chat");
             }
+            if (LogTeamChat())
+            {
+                executeQuery("DROP TABLE server_log_chat_team");
+            }
             if (LogConsole())
             {
                 executeQuery("DROP TABLE server_log_console");
@@ -729,6 +750,10 @@ namespace Oxide.Plugins
             if (LogChat())
             {
                 executeQuery("TRUNCATE TABLE server_log_chat");
+            }
+            if (LogTeamChat())
+            {
+                executeQuery("TRUNCATE TABLE server_log_chat_team");
             }
             if (LogConsole())
             {
@@ -781,6 +806,11 @@ namespace Oxide.Plugins
         bool LogChat()
         {
             return Convert.ToBoolean(Config["_LogChat"]);
+        }
+
+        bool LogTeamChat()
+        {
+            return Convert.ToBoolean(Config["_LogTeamChat"]);
         }
 
         bool LogConsole()
