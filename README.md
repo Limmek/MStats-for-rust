@@ -20,7 +20,7 @@ All options is set to FALSE as default!</br>
 
 * **TurncateDataOnMonthlyWipe** - *Clear database on rust force wipe.*
 * **TurncateDataOnMapWipe** - *Clear database on map change.*
-* **_LogAridrops** - *Logs cargo planes spawned.*
+* **_LogAirdrops** - *Logs cargo planes spawned.*
 * **_AdminLog** - *Logs if player call for admin.*
 * **_LogChat** - *Logs Global chat.*
 * **_LogTeamChat** - *Logs Team chat.*
