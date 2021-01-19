@@ -18,7 +18,7 @@ using ConVar;
 
 namespace Oxide.Plugins
 {
-    [Info("MStats", "Limmek", "1.7.4"/*, ResourceId = 0*/)]
+    [Info("MStats", "Limmek", "1.8.5"/*, ResourceId = 0*/)]
     [Description("Logs player statistics and other server stuff to MySql")]
 
     public class MStats : RustPlugin
@@ -28,8 +28,8 @@ namespace Oxide.Plugins
         private int RustWorldSize = 0;
         private int RustSeed = 0;
         private bool ForceDatabaseCreation = false;
-        private bool TurncateDataOnMonthlyWipe = false;
-        private bool TurncateDataOnMapWipe = false;
+        private bool TruncateDataOnMonthlyWipe = false;
+        private bool TruncateDataOnMapWipe = false;
 
         private Dictionary<BasePlayer, Int32> loginTime = new Dictionary<BasePlayer, int>();
         private readonly Core.MySql.Libraries.MySql _mySql = new Core.MySql.Libraries.MySql();
@@ -46,20 +46,20 @@ namespace Oxide.Plugins
             Config["Username"] = "username";
             Config["Password"] = "password";
             Config["ForceDatabaseCreation"] = false;
-            Config["TurncateDataOnMonthlyWipe"] = false;
-            Config["TurncateDataOnMapWipe"] = false;
+            Config["TruncateDataOnMonthlyWipe"] = false;
+            Config["TruncateDataOnMapWipe"] = false;
             Config["_AdminLog"] = false;
             Config["_AdminLogWords"] = "admin, mod, fuck";
             Config["_MySQL"] = false;
             Config["_LogChat"] = false;
             Config["_LogTeamChat"] = false;
             Config["_LogConsole"] = false;
-            Config["_LogAridrops"] = false;
+            Config["_LogAirdrops"] = false;
             Config["_LogServerCargoship"] = false;
             Config["_LogServerPatrolhelicopter"] = false;
-            Config["_LogServerbradleyapc"] = false;
-            Config["_LogServerch47"] = false;
-            Config["Version"] = "1.5.3";
+            Config["_LogServerbradleyAPC"] = false;
+            Config["_LogServerCH47"] = false;
+            Config["Version"] = "1.8.5";
             SaveConfig();
         }
 
@@ -102,8 +102,8 @@ namespace Oxide.Plugins
                 executeQuery("CREATE TABLE IF NOT EXISTS player_resource_gather (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, resource VARCHAR(255) NULL, amount INT(32), date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerGather` (`player_id`,`resource`,`date`) ) ENGINE=InnoDB;");
                 executeQuery("CREATE TABLE IF NOT EXISTS player_crafted_item (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, item VARCHAR(128), amount INT(32), date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerItem` (`player_id`,`item`,`date`) ) ENGINE=InnoDB;");
                 executeQuery("CREATE TABLE IF NOT EXISTS player_bullets_fired (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, bullet_name VARCHAR(128) NULL, bullets_fired INT(32) DEFAULT '1', weapon_name VARCHAR(128) NULL, date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerBullet` (`player_id`,`bullet_name`,`weapon_name`,`date`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_kill_animal (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, animal VARCHAR(128), distance INT(11) NULL DEFAULT '0', weapon VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_kill (id INT(11) NOT NULL AUTO_INCREMENT, killer_id BIGINT(20) NULL, victim_id BIGINT(20) NULL, bodypart VARCHAR(128), weapon VARCHAR(128), distance INT(11) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_kill_animal (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, animal VARCHAR(128), distance DOUBLE NULL DEFAULT 0, weapon VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_kill (id INT(11) NOT NULL AUTO_INCREMENT, killer_id BIGINT(20) NULL, victim_id BIGINT(20) NULL, bodypart VARCHAR(128), weapon VARCHAR(128), distance DOUBLE NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
                 executeQuery("CREATE TABLE IF NOT EXISTS player_death (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, cause VARCHAR(128), count INT(11) NULL DEFAULT '1', date DATE NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`,`date`,`cause`) ) ENGINE=InnoDB;");
                 executeQuery("CREATE TABLE IF NOT EXISTS player_destroy_building (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, building VARCHAR(128), building_grade VARCHAR(128), weapon VARCHAR(128), time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
                 executeQuery("CREATE TABLE IF NOT EXISTS player_place_building (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(128) NULL, building VARCHAR(128) NULL, amount INT(32) NULL DEFAULT '1', date DATE NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`,`date`,`building`) ) ENGINE=InnoDB;");
@@ -126,7 +126,7 @@ namespace Oxide.Plugins
                 {
                     executeQuery("CREATE TABLE IF NOT EXISTS server_log_console (id INT(11) NOT NULL AUTO_INCREMENT, server_message VARCHAR(255) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
                 }
-                if (LogAiredrop())
+                if (LogAirdrop())
                 {
                     executeQuery("CREATE TABLE IF NOT EXISTS server_log_airdrop	(id INT(11) NOT NULL AUTO_INCREMENT, plane VARCHAR(128) NULL, location VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
                 }
@@ -138,11 +138,11 @@ namespace Oxide.Plugins
                 {
                     executeQuery("CREATE TABLE IF NOT EXISTS server_log_cargoship (id INT(11) NOT NULL AUTO_INCREMENT, plane VARCHAR(128) NULL, location VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (id) ) ENGINE=InnoDB;");
                 }
-                if (LogServerch47())
+                if (LogServerCH47())
                 {
                     executeQuery("CREATE TABLE IF NOT EXISTS server_log_ch47 (id INT(11) NOT NULL AUTO_INCREMENT, plane VARCHAR(128) NULL, location VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (id) ) ENGINE=InnoDB;");
                 }
-                if (LogServerbradleyapc())
+                if (LogServerbradleyAPC())
                 {
                     executeQuery("CREATE TABLE IF NOT EXISTS server_log_bradleyapc (id INT(11) NOT NULL AUTO_INCREMENT, plane VARCHAR(128) NULL, location VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (id) ) ENGINE=InnoDB;");
                 }
@@ -199,7 +199,7 @@ namespace Oxide.Plugins
                 dataFile.Save();
             }
 
-            if(Convert.ToBoolean(Config["TurncateDataOnMonthlyWipe"]) == true)
+            if(Convert.ToBoolean(Config["TruncateDataOnMonthlyWipe"]) == true)
             {
                 if (Convert.ToInt32(dataFile["RustNetwork"]) != RustNetwork)
                 {
@@ -210,11 +210,11 @@ namespace Oxide.Plugins
                     dataFile["RustSeed"] = RustSeed;
                     dataFile.Save();
 
-                    TurncateData();
+                    TruncateData();
                 }
             }
 
-            if(Convert.ToBoolean(Config["TurncateDataOnMapWipe"]) == true)
+            if(Convert.ToBoolean(Config["TruncateDataOnMapWipe"]) == true)
             {
                 if (Convert.ToInt32(dataFile["RustSeed"]) != RustSeed)
                 {
@@ -225,7 +225,7 @@ namespace Oxide.Plugins
                     dataFile["RustSeed"] = RustSeed;
                     dataFile.Save();
 
-                    TurncateData();
+                    TruncateData();
                 }
             }
 
@@ -429,13 +429,13 @@ namespace Oxide.Plugins
                             weapon = ((BasePlayer)entity.lastAttacker).GetActiveItem().info.displayName.english;
                         }
                         catch { }
-                        string distance = "-1";
+                        double distance = 0;
                         if (hitInfo != null)
-                            distance = GetDistance(entity, hitInfo.Initiator) ?? "0";
+                            distance = GetDistance(entity, hitInfo.Initiator);
                         else
                         {
                             weapon += "(BLEED TO DEATH)";
-                            distance = GetDistance(entity, (BasePlayer)entity.lastAttacker) ?? "0";
+                            distance = GetDistance(entity, (BasePlayer)entity.lastAttacker);
                         }
                         executeQuery("INSERT INTO player_kill_animal (player_id, animal, distance, weapon, time) VALUES (@0, @1, @2, @3, @4)",
                             ((BasePlayer)entity.lastAttacker).userID, GetFormattedAnimal(entity.ToString()), distance, weapon, getDateTime());
@@ -455,13 +455,13 @@ namespace Oxide.Plugins
                             weapon = ((BasePlayer)entity.lastAttacker).GetActiveItem().info.displayName.english;
                         }
                         catch { }
-                        string distance = "-1";
+                        double distance = 0;
                         if (hitInfo != null)
-                            distance = GetDistance(entity, hitInfo.Initiator) ?? "0";
+                            distance = GetDistance(entity, hitInfo.Initiator);
                         else
                         {
                             weapon += "(BLEED TO DEATH)";
-                            distance = GetDistance(entity, (BasePlayer)entity.lastAttacker) ?? "0";
+                            distance = GetDistance(entity, (BasePlayer)entity.lastAttacker);
                         }
                         executeQuery("INSERT INTO player_kill (killer_id, victim_id, bodypart, weapon, distance, time) VALUES (@0, @1, @2, @3, @4, @5)",
                             ((BasePlayer)entity.lastAttacker).userID, ((BasePlayer)entity).userID, formatBodyPartName(hitInfo), weapon, distance, getDateTime());
@@ -628,7 +628,7 @@ namespace Oxide.Plugins
         // log air planes spawned
         void OnAirdrop(CargoPlane plane, Vector3 location)
         {
-            if (LogAiredrop())
+            if (LogAirdrop())
             {
                 executeQuery("INSERT INTO server_log_airdrop (plane, location, time) VALUES (@0, @1, @2)", plane.ToString(), location.ToString(), getDateTime());
             }
@@ -646,11 +646,11 @@ namespace Oxide.Plugins
             {
                 executeQuery("INSERT INTO server_log_cargoship (plane, location, time) VALUES (@0, @1, @2)", entity.ToString(), entity.transform.position.ToString(), getDateTime());
             }
-            else if (entity is CH47Helicopter && entity.ToString().Contains("ch47") && LogServerch47())
+            else if (entity is CH47Helicopter && entity.ToString().Contains("ch47") && LogServerCH47())
             {
                 executeQuery("INSERT INTO server_log_ch47 (plane, location, time) VALUES (@0, @1, @2)", entity.ToString(), entity.transform.position.ToString(), getDateTime());
             }
-            else if (entity is BradleyAPC && entity.ToString().Contains("bradleyapc") && LogServerbradleyapc())
+            else if (entity is BradleyAPC && entity.ToString().Contains("bradleyapc") && LogServerbradleyAPC())
             {
                 executeQuery("INSERT INTO server_log_bradleyapc (plane, location, time) VALUES (@0, @1, @2)", entity.ToString(), entity.transform.position.ToString(), getDateTime());
             }
@@ -706,7 +706,7 @@ namespace Oxide.Plugins
             {
                 executeQuery("DROP TABLE server_log_console");
             }
-            if (LogAiredrop())
+            if (LogAirdrop())
             {
                 executeQuery("DROP TABLE server_log_airdrop");
             }
@@ -718,18 +718,18 @@ namespace Oxide.Plugins
             {
                 executeQuery("DROP TABLE server_log_cargoship");
             }
-            if (LogServerch47())
+            if (LogServerCH47())
             {
                 executeQuery("DROP TABLE server_log_ch47");
             }
-            if (LogServerbradleyapc())
+            if (LogServerbradleyAPC())
             {
                 executeQuery("DROP TABLE server_log_bradleyapc");
             }          
             PrintWarning("Drop tables successful!\nPlease reload the plugin to create new tabels");
         }
         
-        private void TurncateData()
+        private void TruncateData()
         {
             executeQuery("TRUNCATE TABLE player_stats");
             executeQuery("TRUNCATE TABLE player_resource_gather");
@@ -759,7 +759,7 @@ namespace Oxide.Plugins
             {
                 executeQuery("TRUNCATE TABLE server_log_console");
             }
-            if (LogAiredrop())
+            if (LogAirdrop())
             {
                 executeQuery("TRUNCATE TABLE server_log_airdrop");
             }
@@ -771,11 +771,11 @@ namespace Oxide.Plugins
             {
                 executeQuery("TRUNCATE TABLE server_log_cargoship");
             }
-            if (LogServerch47())
+            if (LogServerCH47())
             {
                 executeQuery("TRUNCATE TABLE server_log_ch47");
             }
-            if (LogServerbradleyapc())
+            if (LogServerbradleyAPC())
             {
                 executeQuery("TRUNCATE TABLE server_log_bradleyapc");
             }
@@ -784,7 +784,7 @@ namespace Oxide.Plugins
         //Drop tables
         [ConsoleCommand("mstats.empty")]
         private void EmptyTableCommand(ConsoleSystem.Arg arg) {
-            TurncateData();
+            TruncateData();
             PrintWarning("Empty tables successful!\nPlease reload the plugin to create new tabels");
         }
 
@@ -818,9 +818,9 @@ namespace Oxide.Plugins
             return Convert.ToBoolean(Config["_LogConsole"]);
         }
 
-        bool LogAiredrop()
+        bool LogAirdrop()
         {
-            return Convert.ToBoolean(Config["_LogAridrops"]);
+            return Convert.ToBoolean(Config["_LogAirdrops"]);
         }
 
         bool LogAdminCall() {
@@ -837,20 +837,20 @@ namespace Oxide.Plugins
             return Convert.ToBoolean(Config["_LogServerPatrolhelicopter"]);
         }
 
-        bool LogServerbradleyapc()
+        bool LogServerbradleyAPC()
         {
-            return Convert.ToBoolean(Config["_LogServerbradleyapc"]);
+            return Convert.ToBoolean(Config["_LogServerbradleyAPC"]);
         }
 
-        bool LogServerch47()
+        bool LogServerCH47()
         {
-            return Convert.ToBoolean(Config["_LogServerch47"]);
+            return Convert.ToBoolean(Config["_LogServerCH47"]);
         }
 
-        string GetDistance(BaseCombatEntity victim, BaseEntity attacker)
+        double GetDistance(BaseCombatEntity victim, BaseEntity attacker)
         {
-            string distance = Convert.ToInt32(Vector3.Distance(victim.transform.position, attacker.transform.position)).ToString();
-            return distance;
+            double distance = attacker.Distance(victim.transform.position);
+            return Math.Round(distance, 1);
         }
 
         string GetFormattedAnimal(string animal)
