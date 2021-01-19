@@ -29,8 +29,8 @@ All options is set to FALSE as default!</br>
 * **_AdminLogWords** - *Specific words writen by players to be loged.*
 * **_LogServerCargoship** - *Logs cargoships spawned.*
 * **_LogServerPatrolhelicopter** - *Logs Patrol helicopters spawned.*
-* **_LogServerbradleyapc** - *Logs bradleys spawned.*
-* **_LogServerch47** - *Logs ch47 spawned.*
+* **_LogServerBradleyAPC** - *Logs bradleys spawned.*
+* **_LogServerCH47** - *Logs ch47 spawned.*
 
 ------
 
