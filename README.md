@@ -18,6 +18,7 @@ Plugin creates database tables if not exists. NO SQL file needed!
 
 All options is set to FALSE as default!</br>
 
+* **ForceDatabaseCreation** - *Create database.*
 * **TruncateDataOnMonthlyWipe** - *Clear database on rust force wipe.*
 * **TruncateDataOnMapWipe** - *Clear database on map change.*
 * **_LogAirdrops** - *Logs cargo planes spawned.*
