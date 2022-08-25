@@ -1,38 +1,52 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Text;
-using System.Net;
-using System.Linq;
+﻿using ConVar;
 using Facepunch;
 using Oxide.Core;
+using Oxide.Core.Configuration;
 using Oxide.Core.Database;
+using Oxide.Core.Libraries;
 using Oxide.Core.MySql;
 using Oxide.Core.Plugins;
-using Oxide.Core.Libraries;
-using Oxide.Core.Configuration;
 using Oxide.Game.Rust;
 using Rust;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Text;
 using UnityEngine;
-using ConVar;
 
 namespace Oxide.Plugins
 {
-    [Info("MStats", "Limmek", "1.8.5"/*, ResourceId = 0*/)]
+    [
+        Info(
+            "MStats",
+            "Limmek",
+            "1.9.6") /*, ResourceId = 0*/
+    ]
     [Description("Logs player statistics and other server stuff to MySql")]
-
     public class MStats : RustPlugin
     {
         private int RustNetwork = 0;
+
         private int RustSave = 0;
+
         private int RustWorldSize = 0;
+
         private int RustSeed = 0;
+
         private bool ForceDatabaseCreation = false;
+
         private bool TruncateDataOnMonthlyWipe = false;
+
         private bool TruncateDataOnMapWipe = false;
 
-        private Dictionary<BasePlayer, Int32> loginTime = new Dictionary<BasePlayer, int>();
-        private readonly Core.MySql.Libraries.MySql _mySql = new Core.MySql.Libraries.MySql();
+        private Dictionary<BasePlayer, Int32>
+            loginTime = new Dictionary<BasePlayer, int>();
+
+        private readonly Core.MySql.Libraries.MySql
+            _mySql = new Core.MySql.Libraries.MySql();
+
         private Connection _mySqlConnection = null;
 
         //Config TODO CREATE SEPARATE CLASSES.
@@ -59,7 +73,7 @@ namespace Oxide.Plugins
             Config["_LogServerPatrolhelicopter"] = false;
             Config["_LogServerbradleyAPC"] = false;
             Config["_LogServerCH47"] = false;
-            Config["Version"] = "1.8.5";
+            Config["Version"] = "1.9.6";
             SaveConfig();
         }
 
@@ -71,10 +85,16 @@ namespace Oxide.Plugins
                 Puts("Opening connection.");
                 if (usingMySQL() && _mySqlConnection == null)
                 {
-                    _mySqlConnection = _mySql.OpenDb(Config["Host"].ToString(), Convert.ToInt32(Config["Port"]), Config["Database"].ToString(), Config["Username"].ToString(), Config["Password"].ToString(), this);
+                    _mySqlConnection =
+                        _mySql
+                            .OpenDb(Config["Host"].ToString(),
+                            Convert.ToInt32(Config["Port"]),
+                            Config["Database"].ToString(),
+                            Config["Username"].ToString(),
+                            Config["Password"].ToString(),
+                            this);
                     Puts("Connection opened.");
                 }
-
             }
             catch (Exception ex)
             {
@@ -86,41 +106,42 @@ namespace Oxide.Plugins
         public void executeQuery(string query, params object[] data)
         {
             var sql = Sql.Builder.Append(query, data);
-            _mySql.Insert(sql, _mySqlConnection);
+            _mySql.Insert (sql, _mySqlConnection);
         }
 
         private void createTablesOnConnect()
         {
             try
             {
-                //PrintWarning("Creating tables...");
-                if (Convert.ToBoolean(Config["ForceDatabaseCreation"]) == true)
+                if (Convert.ToBoolean(Config["ForceDatabaseCreation"]))
                 {
-                    executeQuery("CREATE DATABASE IF NOT EXISTS " + Config["Database"].ToString());
+                    executeQuery("CREATE DATABASE IF NOT EXISTS " +
+                    Config["Database"].ToString());
                 }
                 executeQuery("CREATE TABLE IF NOT EXISTS player_stats (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, player_ip VARCHAR(128) NULL, player_state INT(1) NULL DEFAULT '0', player_online_time BIGINT(20) DEFAULT '0', player_last_login TIMESTAMP NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`) ) ENGINE=InnoDB;");
                 executeQuery("CREATE TABLE IF NOT EXISTS player_resource_gather (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, resource VARCHAR(255) NULL, amount INT(32), date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerGather` (`player_id`,`resource`,`date`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_crafted_item (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, item VARCHAR(128), amount INT(32), date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerItem` (`player_id`,`item`,`date`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_bullets_fired (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, bullet_name VARCHAR(128) NULL, bullets_fired INT(32) DEFAULT '1', weapon_name VARCHAR(128) NULL, date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerBullet` (`player_id`,`bullet_name`,`weapon_name`,`date`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_kill_animal (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, animal VARCHAR(128), distance DOUBLE NULL DEFAULT 0, weapon VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_kill (id INT(11) NOT NULL AUTO_INCREMENT, killer_id BIGINT(20) NULL, victim_id BIGINT(20) NULL, bodypart VARCHAR(128), weapon VARCHAR(128), distance DOUBLE NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_death (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, cause VARCHAR(128), count INT(11) NULL DEFAULT '1', date DATE NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`,`date`,`cause`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_destroy_building (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, building VARCHAR(128), building_grade VARCHAR(128), weapon VARCHAR(128), time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_place_building (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(128) NULL, building VARCHAR(128) NULL, amount INT(32) NULL DEFAULT '1', date DATE NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`,`date`,`building`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_place_deployable (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(128) NULL, deployable VARCHAR(128) NULL, amount INT(32) NULL DEFAULT '1', date DATE NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`,`date`,`deployable`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_authorize_list (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(128) NULL, cupboard VARCHAR(128) NULL, access INT(32) NULL DEFAULT '0', time TIMESTAMP NULL, PRIMARY KEY (`id`), UNIQUE (`Cupboard`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_connect_log (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(128) NULL, state VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
-				executeQuery("CREATE TABLE IF NOT EXISTS player_chat_command (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(128) NULL, command VARCHAR(128) NULL, text VARCHAR(255) NULL DEFAULT NULL, date TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB;");
-				if (LogAdminCall()) {
-					executeQuery("CREATE TABLE IF NOT EXISTS admin_log	(id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(128) NULL, player_ip VARCHAR(128) NULL, text VARCHAR(255) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
-				}
+                executeQuery("CREATE TABLE IF NOT EXISTS player_crafted_item (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, item VARCHAR(128), amount INT(32), date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerItem` (`player_id`,`item`,`date`) ) ENGINE=InnoDB;");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_bullets_fired (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, bullet_name VARCHAR(128) NULL, bullets_fired INT(32) DEFAULT '1', weapon_name VARCHAR(128) NULL, date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerBullet` (`player_id`,`bullet_name`,`weapon_name`,`date`) ) ENGINE=InnoDB;");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_kill_animal (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, animal VARCHAR(128), distance DOUBLE NULL DEFAULT 0, weapon VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_kill (id INT(11) NOT NULL AUTO_INCREMENT, killer_id BIGINT(20) NULL, killer_name VARCHAR(255) NULL, victim_id BIGINT(20) NULL, victim_name VARCHAR(255) NULL, bodypart VARCHAR(128), weapon VARCHAR(128), distance DOUBLE NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_death (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, cause VARCHAR(128), count INT(11) NULL DEFAULT '1', date DATE NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`,`date`,`cause`) ) ENGINE=InnoDB;");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_destroy_building (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, building VARCHAR(128), building_grade VARCHAR(128), weapon VARCHAR(128), time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_place_building (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, building VARCHAR(128) NULL, amount INT(32) NULL DEFAULT '1', date DATE NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`,`date`,`building`) ) ENGINE=InnoDB;");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_place_deployable (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, deployable VARCHAR(128) NULL, amount INT(32) NULL DEFAULT '1', date DATE NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`,`date`,`deployable`) ) ENGINE=InnoDB;");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_authorize_list (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, cupboard VARCHAR(128) NULL, access INT(32) NULL DEFAULT '0', time TIMESTAMP NULL, PRIMARY KEY (`id`), UNIQUE (`Cupboard`) ) ENGINE=InnoDB;");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_connect_log (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, state VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_chat_command (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, command VARCHAR(128) NULL, text VARCHAR(255) NULL DEFAULT NULL, date TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB;");
+                if (LogAdminCall())
+                {
+                    executeQuery("CREATE TABLE IF NOT EXISTS admin_log	(id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, player_ip VARCHAR(128) NULL, text VARCHAR(255) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
+                }
                 if (LogChat())
                 {
-                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_chat (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(128) NULL, player_ip VARCHAR(128), chat_message VARCHAR(255), admin INT(32) NULL DEFAULT '0', time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
+                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_chat (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, player_ip VARCHAR(128), chat_message VARCHAR(255), admin INT(32) NULL DEFAULT '0', time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
                 }
                 if (LogTeamChat())
                 {
-                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_chat_team (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(128) NULL, player_ip VARCHAR(128), chat_message VARCHAR(255), admin INT(32) NULL DEFAULT '0', time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
+                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_chat_team (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, player_ip VARCHAR(128), chat_message VARCHAR(255), admin INT(32) NULL DEFAULT '0', time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
                 }
                 if (LogConsole())
                 {
@@ -151,45 +172,56 @@ namespace Oxide.Plugins
             {
                 Puts(ex.ToString());
             }
-
         }
 
         void OnServerInitialized()
         {
-            #if !RUST
-                throw new NotSupportedException("This plugin does not support this game");
-            #endif
+#if !RUST
+            throw new NotSupportedException("This plugin does not support this game");
+#endif
 
-            RustNetwork   = Convert.ToInt32(Protocol.network);
-            RustSave      = Convert.ToInt32(Protocol.save);
+
+            RustNetwork = Convert.ToInt32(Protocol.network);
+            RustSave = Convert.ToInt32(Protocol.save);
             RustWorldSize = ConVar.Server.worldsize;
-            RustSeed      = ConVar.Server.seed;
-            Puts($"Game Version: {RustNetwork}.{RustSave}, size: {RustWorldSize}, seed: {RustSeed}");
+            RustSeed = ConVar.Server.seed;
+            Puts($"Game Version: {RustNetwork}.{RustSave}, size: {
+                RustWorldSize}, seed: {RustSeed}");
 
             string curVersion = Version.ToString();
             string[] version = curVersion.Split('.');
-            var majorPluginUpdate = version[0]; 	// Big Plugin Update
-            var minorPluginUpdate = version[1];		// Small Plugin Update
-            var databaseVersion = version[2];       // Database Update
+            var majorPluginUpdate = version[0]; // Big Plugin Update
+            var minorPluginUpdate = version[1]; // Small Plugin Update
+            var databaseVersion = version[2]; // Database Update
             var pluginVersion = majorPluginUpdate + "." + minorPluginUpdate;
-            Puts("Plugin version: " + majorPluginUpdate + "." + minorPluginUpdate + "  Database version: " + databaseVersion);
+            Puts("Plugin version: " +
+            majorPluginUpdate +
+            "." +
+            minorPluginUpdate +
+            "  Database version: " +
+            databaseVersion);
             if (pluginVersion != getConfigVersion("plugin"))
             {
-                Puts("New " + pluginVersion + " Old " + getConfigVersion("plugin"));
+                Puts("New " +
+                pluginVersion +
+                " Old " +
+                getConfigVersion("plugin"));
                 Config["Version"] = pluginVersion + "." + databaseVersion;
                 SaveConfig();
             }
             if (databaseVersion != getConfigVersion("db"))
             {
-                Puts("New " + databaseVersion + " Old " + getConfigVersion("db"));
+                Puts("New " +
+                databaseVersion +
+                " Old " +
+                getConfigVersion("db"));
                 PrintWarning("Database base changes please drop the old!");
                 Config["Version"] = pluginVersion + "." + databaseVersion;
                 SaveConfig();
             }
 
-            
-            
-            DynamicConfigFile dataFile = Interface.Oxide.DataFileSystem.GetDatafile(nameof(MStats));
+            DynamicConfigFile dataFile =
+                Interface.Oxide.DataFileSystem.GetDatafile(nameof(MStats));
             if (dataFile["RustNetwork"] == null)
             {
                 dataFile["RustNetwork"] = RustNetwork;
@@ -199,7 +231,7 @@ namespace Oxide.Plugins
                 dataFile.Save();
             }
 
-            if(Convert.ToBoolean(Config["TruncateDataOnMonthlyWipe"]) == true)
+            if (Convert.ToBoolean(Config["TruncateDataOnMonthlyWipe"]) == true)
             {
                 if (Convert.ToInt32(dataFile["RustNetwork"]) != RustNetwork)
                 {
@@ -214,7 +246,7 @@ namespace Oxide.Plugins
                 }
             }
 
-            if(Convert.ToBoolean(Config["TruncateDataOnMapWipe"]) == true)
+            if (Convert.ToBoolean(Config["TruncateDataOnMapWipe"]) == true)
             {
                 if (Convert.ToInt32(dataFile["RustSeed"]) != RustSeed)
                 {
@@ -228,7 +260,6 @@ namespace Oxide.Plugins
                     TruncateData();
                 }
             }
-
         }
 
         //Plugin loaded
@@ -243,37 +274,42 @@ namespace Oxide.Plugins
         {
             foreach (var player in BasePlayer.activePlayerList)
             {
-                OnPlayerDisconnected(player);
+                OnPlayerDisconnected (player);
             }
-            timer.Once(5, () =>
-            {
-                _mySql.CloseDb(_mySqlConnection);
-                _mySqlConnection = null;
-            });
+            timer
+                .Once(5,
+                () =>
+                {
+                    _mySql.CloseDb (_mySqlConnection);
+                    _mySqlConnection = null;
+                });
         }
-
 
         /*********************************
         **         Player Hooks         **
         *********************************/
-
         //Player login
         void OnPlayerConnected(BasePlayer player)
         {
-            if (!player.IsConnected)
-                return;
+            if (!player.IsConnected) return;
 
-            string properName = EncodeNonAsciiCharacters(player.displayName);
+            executeQuery("INSERT INTO player_stats (player_id, player_name, player_ip, player_state, player_last_login) VALUES (@0, @1, @2, 1, @3) ON DUPLICATE KEY UPDATE player_name = @1, player_ip = @2, player_state = 1, player_last_login= @3",
+            player.userID,
+            player.displayName,
+            player.net.connection.ipaddress,
+            getDateTime());
 
-            executeQuery(
-                "INSERT INTO player_stats (player_id, player_name, player_ip, player_state, player_last_login) VALUES (@0, @1, @2, 1, @3) ON DUPLICATE KEY UPDATE player_name = @1, player_ip = @2, player_state = 1, player_last_login= @3",
-                player.userID, properName, player.net.connection.ipaddress, getDateTime());
-            if (loginTime.ContainsKey(player))
-                OnPlayerDisconnected(player);
+            if (loginTime.ContainsKey(player)) OnPlayerDisconnected(player);
 
-            loginTime.Add(player, (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds);
+            loginTime
+                .Add(player,
+                (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1)))
+                    .TotalSeconds);
             executeQuery("INSERT INTO player_connect_log (player_id, player_name, state, time) VALUES (@0, @1, @2, @3)",
-                         player.userID, EncodeNonAsciiCharacters(player.displayName), "Connected", getDateTime());
+            player.userID,
+            player.displayName,
+            "Connected",
+            getDateTime());
         }
 
         //Player Logout
@@ -282,91 +318,146 @@ namespace Oxide.Plugins
             if (loginTime.ContainsKey(player))
             {
                 //Puts("OnPlayerDisconnected works!");
-                executeQuery(
-                    "UPDATE player_stats SET player_online_time = player_online_time + @0, player_state = 0 WHERE player_id = @1",
-                    (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds - loginTime[player], player.userID);
-                loginTime.Remove(player);
+                executeQuery("UPDATE player_stats SET player_online_time = player_online_time + @0, player_state = 0 WHERE player_id = @1",
+                (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1)))
+                    .TotalSeconds -
+                loginTime[player],
+                player.userID);
+                loginTime.Remove (player);
             }
             executeQuery("INSERT INTO player_connect_log (player_id, player_name, state, time) VALUES (@0, @1, @2, @3)",
-                         player.userID, EncodeNonAsciiCharacters(player.displayName), "Disconnected", getDateTime());
+            player.userID,
+            player.displayName,
+            "Disconnected",
+            getDateTime());
         }
 
         //Player Gather resource
-        void OnDispenserGather(ResourceDispenser dispenser, BaseEntity entity, Item item)
+        void OnDispenserGather(
+            ResourceDispenser dispenser,
+            BaseEntity entity,
+            Item item
+        )
         {
             if (entity is BasePlayer)
             {
-                string properName = EncodeNonAsciiCharacters(((BasePlayer)entity).displayName);
-                executeQuery(
-                    "INSERT INTO player_resource_gather (player_id, resource, amount, date, player_name) VALUES (@0, @1, @2, @3, @4)" +
-                       "ON DUPLICATE KEY UPDATE amount = amount + " + item.amount, ((BasePlayer)entity).userID, item.info.displayName.english, item.amount, getDate(), properName);
+                executeQuery("INSERT INTO player_resource_gather (player_id, player_name, resource, amount, date, player_name) VALUES (@0, @1, @2, @3, @4, @5)" +
+                "ON DUPLICATE KEY UPDATE amount = amount + " +
+                item.amount,
+                ((BasePlayer) entity).userID,
+                item.info.displayName.english,
+                item.amount,
+                getDate(),
+                ((BasePlayer) entity).displayName);
             }
         }
 
         //Player Pickup resource
         void OnCollectiblePickup(Item item, BasePlayer player)
         {
-            string properName = EncodeNonAsciiCharacters(((BasePlayer)player).displayName);
-            executeQuery(
-                "INSERT INTO player_resource_gather (player_id, resource, amount, date, player_name) VALUES (@0, @1, @2, @3, @4)" +
-                   "ON DUPLICATE KEY UPDATE amount = amount +" + item.amount, ((BasePlayer)player).userID, item.info.displayName.english, item.amount, getDate(), properName);
+            executeQuery("INSERT INTO player_resource_gather (player_id, player_name, resource, amount, date, player_name) VALUES (@0, @1, @2, @3, @4, @5)" +
+            "ON DUPLICATE KEY UPDATE amount = amount +" +
+            item.amount,
+            player.userID,
+            item.info.displayName.english,
+            item.amount,
+            getDate(),
+            player.displayName);
         }
 
         //Player crafted item
         void OnItemCraftFinished(ItemCraftTask task, Item item)
         {
-            executeQuery("INSERT INTO player_crafted_item (player_id, item, amount, date) VALUES (@0, @1, @2, @3)" +
-               "ON DUPLICATE KEY UPDATE amount = amount +" + item.amount, task.owner.userID, item.info.displayName.english, item.amount, getDate());
+            executeQuery("INSERT INTO player_crafted_item (player_id, player_name, item, amount, date) VALUES (@0, @1, @2, @3, @4)" +
+            "ON DUPLICATE KEY UPDATE amount = amount +" +
+            item.amount,
+            task.owner.userID,
+            task.owner.displayName,
+            item.info.displayName.english,
+            item.amount,
+            getDate());
         }
 
         // Player place item or building
         void OnEntityBuilt(Planner plan, GameObject go, HeldEntity heldentity)
         {
-            string name = plan.GetOwnerPlayer().displayName; //Playername
+            string playerName = plan.GetOwnerPlayer().displayName; //Playername
             ulong playerID = plan.GetOwnerPlayer().userID; //steam_id
             var placedObject = go.ToBaseEntity();
             if (placedObject is BuildingBlock)
             {
-                string item_name = ((BuildingBlock)placedObject).blockDefinition.info.name.english;
+                string item_name =
+                    ((BuildingBlock) placedObject)
+                        .blockDefinition
+                        .info
+                        .name
+                        .english;
+
                 //Puts(playerID + name + item_name + getDate());
-                executeQuery("INSERT INTO player_place_building (player_id, player_name, building, date) VALUES (@0, @1, @2, @3)" +
-                        "ON DUPLICATE KEY UPDATE amount = amount + 1", playerID, name, item_name, getDate());
+                executeQuery("INSERT INTO player_place_building (player_id, player_name, building, date) VALUES (@0, @1, @2, @3, @4)" +
+                "ON DUPLICATE KEY UPDATE amount = amount + 1",
+                playerID,
+                playerName,
+                item_name,
+                getDate());
             }
             else if (plan.isTypeDeployable)
             {
-                string item_name = plan.GetOwnerItemDefinition().displayName.english;
+                string item_name =
+                    plan.GetOwnerItemDefinition().displayName.english;
+
                 //Puts(playerID + name + item_name + getDate());
-                executeQuery("INSERT INTO player_place_deployable (player_id, player_name, deployable, date) VALUES (@0, @1, @2, @3)" +
-                        "ON DUPLICATE KEY UPDATE amount = amount + 1", playerID, name, item_name, getDate());
+                executeQuery("INSERT INTO player_place_deployable (player_id, player_name, deployable, date) VALUES (@0, @1, @2, @3, @4)" +
+                "ON DUPLICATE KEY UPDATE amount = amount + 1",
+                playerID,
+                playerName,
+                item_name,
+                getDate());
             }
             if (plan.GetOwnerItemDefinition().shortname == "cupboard.tool")
             {
                 var cupboard = go.GetComponent<BuildingPrivlidge>();
                 BasePlayer player = plan.GetOwnerPlayer();
-                OnCupboardAuthorize(cupboard, player);
-                OnCupboardAuthorize(cupboard, player); // Dirty fix for set access to 1
+                OnCupboardAuthorize (cupboard, player);
+                OnCupboardAuthorize (cupboard, player); // Dirty fix for set access to 1
             }
         }
-
 
         /*********************************
         ** Weapons and Amunation Hooks  **
         *********************************/
-
         //Grab bullets fired and weapon type
-        void OnWeaponFired(BaseProjectile projectile, BasePlayer player, ItemModProjectile itemProjectile, ProtoBuf.ProjectileShoot projectiles)
+        void OnWeaponFired(
+            BaseProjectile projectile,
+            BasePlayer player,
+            ItemModProjectile itemProjectile,
+            ProtoBuf.ProjectileShoot projectiles
+        )
         {
-            string bullet = "Unknown", weapon = (player.GetActiveItem() != null ? player.GetActiveItem().info.displayName.english : "Unknown");
+            string
+                bullet = "Unknown",
+                weapon =
+                    (
+                    player.GetActiveItem() != null
+                        ? player.GetActiveItem().info.displayName.english
+                        : "Unknown"
+                    );
             try
             {
-                bullet = projectile.primaryMagazine.ammoType.displayName.english;
+                bullet =
+                    projectile.primaryMagazine.ammoType.displayName.english;
             }
             catch (Exception ex)
             {
                 Puts(ex.StackTrace);
             }
-            executeQuery("INSERT INTO player_bullets_fired (player_id, bullet_name, weapon_name, date) VALUES (@0, @1, @2, @3)" +
-                        "ON DUPLICATE KEY UPDATE bullets_fired = bullets_fired + 1", player.userID, bullet, weapon, getDate());
+            executeQuery("INSERT INTO player_bullets_fired (player_id, player_name, bullet_name, weapon_name, date) VALUES (@0, @1, @2, @3, @4)" +
+            "ON DUPLICATE KEY UPDATE bullets_fired = bullets_fired + 1",
+            player.userID,
+            player.displayName,
+            bullet,
+            weapon,
+            getDate());
         }
 
         // RocketLuancher
@@ -382,37 +473,65 @@ namespace Oxide.Plugins
                 rocketName = "High Velocity Rocket";
             else if (prefab.StartsWith("rocket_smoke"))
                 rocketName = "Smoke Rocket WIP";
-            executeQuery("INSERT INTO player_bullets_fired (player_id, bullet_name, weapon_name, date) VALUES (@0, @1, @2, @3)" +
-                        "ON DUPLICATE KEY UPDATE bullets_fired = bullets_fired + 1", player.userID, rocketName, player.GetActiveItem().info.displayName.english, getDate());
+            executeQuery("INSERT INTO player_bullets_fired (player_id, player_name, bullet_name, weapon_name, date) VALUES (@0, @1, @2, @3, @4)" +
+            "ON DUPLICATE KEY UPDATE bullets_fired = bullets_fired + 1",
+            player.userID,
+            player.displayName,
+            rocketName,
+            player.GetActiveItem().info.displayName.english,
+            getDate());
         }
 
         // Explosive
         void OnExplosiveThrown(BasePlayer player, BaseEntity entity)
         {
-            executeQuery("INSERT INTO player_bullets_fired (player_id, bullet_name, weapon_name, date) VALUES (@0, @1, @2, @3)" +
-                        "ON DUPLICATE KEY UPDATE bullets_fired = bullets_fired + 1", player.userID, player.GetActiveItem().info.displayName.english, player.GetActiveItem().info.displayName.english, getDate());
+            executeQuery("INSERT INTO player_bullets_fired (player_id, player_name, bullet_name, weapon_name, date) VALUES (@0, @1, @2, @3, @4)" +
+            "ON DUPLICATE KEY UPDATE bullets_fired = bullets_fired + 1",
+            player.userID,
+            player.displayName,
+            player.GetActiveItem().info.displayName.english,
+            player.GetActiveItem().info.displayName.english,
+            getDate());
         }
 
         // On death
         void OnEntityDeath(BaseCombatEntity entity, HitInfo hitInfo)
         {
-            if (entity.lastAttacker != null && entity.lastAttacker is BasePlayer)
+            if (entity.lastAttacker != null && entity.lastAttacker is BasePlayer
+            )
             {
                 if (entity is BuildingBlock)
                 {
-                    BasePlayer attacker = ((BasePlayer)entity.lastAttacker);
+                    BasePlayer attacker = ((BasePlayer) entity.lastAttacker);
                     string weapon = "Unknown";
                     try
                     {
-                        weapon = attacker.GetActiveItem().info.displayName.english;
+                        weapon =
+                            attacker.GetActiveItem().info.displayName.english;
                     }
-                    catch { }
+                    catch
+                    {
+                    }
                     try
                     {
-                        executeQuery("INSERT INTO player_destroy_building (player_id, building, building_grade, weapon, time) VALUES (@0, @1, @2, @3, @4)",
-                            ((BasePlayer)entity.lastAttacker).userID, ((BuildingBlock)entity).blockDefinition.info.name.english,
-                            ((BuildingBlock)entity).currentGrade.gradeBase.name.ToUpper() + " (" +
-                            ((BuildingBlock)entity).MaxHealth() + ")", weapon, getDateTime());
+                        executeQuery("INSERT INTO player_destroy_building (player_id, player_name, building, building_grade, weapon, time) VALUES (@0, @1, @2, @3, @4, @5)",
+                        ((BasePlayer) entity.lastAttacker).userID,
+                        ((BasePlayer) entity.lastAttacker).displayName,
+                        ((BuildingBlock) entity)
+                            .blockDefinition
+                            .info
+                            .name
+                            .english,
+                        ((BuildingBlock) entity)
+                            .currentGrade
+                            .gradeBase
+                            .name
+                            .ToUpper() +
+                        " (" +
+                        ((BuildingBlock) entity).MaxHealth() +
+                        ")",
+                        weapon,
+                        getDateTime());
                     }
                     catch (Exception ex)
                     {
@@ -426,19 +545,33 @@ namespace Oxide.Plugins
                         string weapon = "Unknown";
                         try
                         {
-                            weapon = ((BasePlayer)entity.lastAttacker).GetActiveItem().info.displayName.english;
+                            weapon =
+                                ((BasePlayer) entity.lastAttacker)
+                                    .GetActiveItem()
+                                    .info
+                                    .displayName
+                                    .english;
                         }
-                        catch { }
+                        catch
+                        {
+                        }
                         double distance = 0;
                         if (hitInfo != null)
                             distance = GetDistance(entity, hitInfo.Initiator);
                         else
                         {
                             weapon += "(BLEED TO DEATH)";
-                            distance = GetDistance(entity, (BasePlayer)entity.lastAttacker);
+                            distance =
+                                GetDistance(entity,
+                                (BasePlayer) entity.lastAttacker);
                         }
-                        executeQuery("INSERT INTO player_kill_animal (player_id, animal, distance, weapon, time) VALUES (@0, @1, @2, @3, @4)",
-                            ((BasePlayer)entity.lastAttacker).userID, GetFormattedAnimal(entity.ToString()), distance, weapon, getDateTime());
+                        executeQuery("INSERT INTO player_kill_animal (player_id, player_name, animal, distance, weapon, time) VALUES (@0, @1, @2, @3, @4, @5)",
+                        ((BasePlayer) entity.lastAttacker).userID,
+                        ((BasePlayer) entity.lastAttacker).displayName,
+                        GetFormattedAnimal(entity.ToString()),
+                        distance,
+                        weapon,
+                        getDateTime());
                     }
                     catch (Exception ex)
                     {
@@ -452,19 +585,35 @@ namespace Oxide.Plugins
                         string weapon = "Unknown";
                         try
                         {
-                            weapon = ((BasePlayer)entity.lastAttacker).GetActiveItem().info.displayName.english;
+                            weapon =
+                                ((BasePlayer) entity.lastAttacker)
+                                    .GetActiveItem()
+                                    .info
+                                    .displayName
+                                    .english;
                         }
-                        catch { }
+                        catch
+                        {
+                        }
                         double distance = 0;
                         if (hitInfo != null)
                             distance = GetDistance(entity, hitInfo.Initiator);
                         else
                         {
                             weapon += "(BLEED TO DEATH)";
-                            distance = GetDistance(entity, (BasePlayer)entity.lastAttacker);
+                            distance =
+                                GetDistance(entity,
+                                (BasePlayer) entity.lastAttacker);
                         }
-                        executeQuery("INSERT INTO player_kill (killer_id, victim_id, bodypart, weapon, distance, time) VALUES (@0, @1, @2, @3, @4, @5)",
-                            ((BasePlayer)entity.lastAttacker).userID, ((BasePlayer)entity).userID, formatBodyPartName(hitInfo), weapon, distance, getDateTime());
+                        executeQuery("INSERT INTO player_kill (killer_id, killer_name, victim_id, victim_name, bodypart, weapon, distance, time) VALUES (@0, @1, @2, @3, @4, @5, @6, @7)",
+                        ((BasePlayer) entity.lastAttacker).userID,
+                        ((BasePlayer) entity.lastAttacker).displayName,
+                        ((BasePlayer) entity).userID,
+                        ((BasePlayer) entity).displayName,
+                        formatBodyPartName(hitInfo),
+                        weapon,
+                        distance,
+                        getDateTime());
                     }
                     catch (Exception ex)
                     {
@@ -477,8 +626,13 @@ namespace Oxide.Plugins
                 if (entity is BasePlayer)
                 {
                     string cause = entity.lastDamage.ToString().ToUpper();
-                    executeQuery("INSERT INTO player_death (player_id, cause, date, time) VALUES (@0, @1, @2, @3)" +
-                                 "ON DUPLICATE KEY UPDATE count = count + 1", ((BasePlayer)entity).userID, cause, getDate(), getDateTime());
+                    executeQuery("INSERT INTO player_death (player_id, player_name, cause, date, time) VALUES (@0, @1, @2, @3, @4)" +
+                    "ON DUPLICATE KEY UPDATE count = count + 1",
+                    ((BasePlayer) entity).userID,
+                    ((BasePlayer) entity).displayName,
+                    cause,
+                    getDate(),
+                    getDateTime());
                 }
             }
             catch (Exception ex)
@@ -488,31 +642,43 @@ namespace Oxide.Plugins
             }
         }
 
-
         /*********************************
         **    Cupboard Authorize Lis    **
         *********************************/
-
         // Using Cupboard priviliges granted
         void OnCupboardAuthorize(BuildingPrivlidge privilege, BasePlayer player)
         {
             var priv = privilege.ToString();
             var pid = player.userID.ToString();
             var pname = player.displayName.ToString();
+
             //PrintWarning(priv+" "+pid+" "+pname);
             executeQuery("INSERT INTO player_authorize_list (player_id, player_name, cupboard, time) VALUES (@0, @1, @2, @3)" +
-                         "ON DUPLICATE KEY UPDATE access = 1", pid, pname, priv, getDateTime());
+            "ON DUPLICATE KEY UPDATE access = 1",
+            pid,
+            pname,
+            priv,
+            getDateTime());
         }
 
-        //Using Cupboard priviliges blocked	
-        void OnCupboardDeauthorize(BuildingPrivlidge privilege, BasePlayer player)
+        //Using Cupboard priviliges blocked
+
+        void OnCupboardDeauthorize(
+            BuildingPrivlidge privilege,
+            BasePlayer player
+        )
         {
             var priv = privilege.ToString();
             var pid = player.userID.ToString();
             var pname = player.displayName.ToString();
+
             //PrintWarning(priv+" "+pid+" "+pname);
             executeQuery("INSERT INTO player_authorize_list (player_id, player_name, cupboard, time) VALUES (@0, @1, @2, @3)" +
-                         "ON DUPLICATE KEY UPDATE access = 0", pid, pname, priv, getDateTime());
+            "ON DUPLICATE KEY UPDATE access = 0",
+            pid,
+            pname,
+            priv,
+            getDateTime());
         }
 
         //using Cupboard clearing list
@@ -521,107 +687,131 @@ namespace Oxide.Plugins
             var priv = privilege.ToString();
             var pid = player.userID.ToString();
             var pname = player.displayName.ToString();
+
             //PrintWarning(priv+" "+pid+" "+pname);
             executeQuery("INSERT INTO player_authorize_list (player_id, player_name, cupboard, time) VALUES (@0, @1, @2, @3)" +
-                         "ON DUPLICATE KEY UPDATE access = 0", pid, pname, priv, getDateTime(), " WHERE cupboard=", pid);
+            "ON DUPLICATE KEY UPDATE access = 0",
+            pid,
+            pname,
+            priv,
+            getDateTime(),
+            " WHERE cupboard=",
+            pid);
         }
-
 
         /*********************************
         **      Log Console Stuff       **
         *********************************/
-        // log Server commands 
-        void OnServerCommand(ConsoleSystem.Arg arg) {
+        // log Server commands
+
+        void OnServerCommand(ConsoleSystem.Arg arg)
+        {
             if (arg.Connection == null) return;
             var command = arg.cmd.FullName;
             var args = arg.GetString(0);
-            BasePlayer player = (BasePlayer)arg.Connection.player;            
+            BasePlayer player = (BasePlayer) arg.Connection.player;
             executeQuery("INSERT INTO player_chat_command (player_id, player_name, command, text, date) VALUES (@0, @1, @2, @3, @4)",
-                player.userID,
-                EncodeNonAsciiCharacters(player.displayName),
-                command,
-                args,
-                getDateTime()
-            );
+            player.userID,
+            player.displayName,
+            command,
+            args,
+            getDateTime());
         }
 
         // log player commands
         void OnPlayerCommand(BasePlayer player, string command, string[] args)
         {
             executeQuery("INSERT INTO player_chat_command (player_id, player_name, command, text, date) VALUES (@0, @1, @2, @3, @4)",
-                player.userID,
-                EncodeNonAsciiCharacters(player.displayName),
-                command,
-                null,
-                getDateTime()
-            );
+            player.userID,
+            player.displayName,
+            command,
+            null,
+            getDateTime());
         }
 
         // Log server messages
-        void OnServerMessage(string message, string name, string color, ulong id)
+        void OnServerMessage(
+            string message,
+            string name,
+            string color,
+            ulong id
+        )
         {
             if (LogConsole() == true)
             {
-                if(name == "SERVER")
+                if (name == "SERVER")
                 {
                     //PrintWarning(name+" "+message+" "+getDateTime());
-                    executeQuery("INSERT INTO server_log_console (server_message, time) VALUES (@0, @1)", message, getDateTime());
+                    executeQuery("INSERT INTO server_log_console (server_message, time) VALUES (@0, @1)",
+                    message,
+                    getDateTime());
                 }
             }
         }
 
-
-        void OnPlayerChat(BasePlayer player, string message, Chat.ChatChannel channel)
+        void OnPlayerChat(
+            BasePlayer player,
+            string message,
+            Chat.ChatChannel channel
+        )
         {
             if (LogChat() && channel.ToString() == "Global")
             {
                 executeQuery("INSERT INTO server_log_chat (player_id, player_name, player_ip, chat_message, admin, time) VALUES (@0, @1, @2, @3, @4, @5)",
-                    player.userID,
-                    EncodeNonAsciiCharacters(player.displayName),
-                    player.net.connection.ipaddress,
-                    message,
-                    player.IsAdmin,
-                    getDateTime());
+                player.userID,
+                player.displayName,
+                player.net.connection.ipaddress,
+                message,
+                player.IsAdmin,
+                getDateTime());
             }
-            
+
             if (LogTeamChat() && channel.ToString() == "Team")
             {
                 executeQuery("INSERT INTO server_log_chat_team (player_id, player_name, player_ip, chat_message, admin, time) VALUES (@0, @1, @2, @3, @4, @5)",
+                player.userID,
+                player.displayName,
+                player.net.connection.ipaddress,
+                message,
+                player.IsAdmin,
+                getDateTime());
+            }
+
+            //if player ask after admin
+            if (message.Contains("admin"))
+            {
+                if (LogAdminCall() == true)
+                {
+                    executeQuery("INSERT INTO admin_log (player_id, player_name, player_ip, text, time) VALUES (@0, @1, @2, @3, @4)",
                     player.userID,
-                    EncodeNonAsciiCharacters(player.displayName),
+                    player.displayName,
                     player.net.connection.ipaddress,
                     message,
-                    player.IsAdmin,
                     getDateTime());
-            }
-            
-            //if player ask after admin
-            if (message.Contains("admin") ) {
-                if (LogAdminCall() == true) {
-                    executeQuery("INSERT INTO admin_log (player_id, player_name, player_ip, text, time) VALUES (@0, @1, @2, @3, @4)",
-                        player.userID,
-                        EncodeNonAsciiCharacters(player.displayName),
-                        player.net.connection.ipaddress,
-                        message,
-                        getDateTime()
-                    );
                 }
-            }else { //check message after keywords
+            }
+            else
+            {
+                //check message after keywords
                 string words = Config["_AdminLogWords"].ToString();
-                string[] word = words.Split(new char[] {' ', ',' ,';','\t','\n', '\r'}, StringSplitOptions.RemoveEmptyEntries);
-                foreach (string a in word) {
+                string[] word =
+                    words
+                        .Split(new char[] { ' ', ',', ';', '\t', '\n', '\r' },
+                        StringSplitOptions.RemoveEmptyEntries);
+                foreach (string a in word)
+                {
                     //PrintWarning(word);
-                    if (message.Contains(a) && LogAdminCall() == true ) {
+                    if (message.Contains(a) && LogAdminCall() == true)
+                    {
                         //PrintWarning(a);
                         executeQuery("INSERT INTO admin_log (player_id, player_name, player_ip, text, time) VALUES (@0, @1, @2, @3, @4)",
-                            player.userID,
-                            EncodeNonAsciiCharacters(player.displayName),
-                            player.net.connection.ipaddress,
-                            message,
-                            getDateTime()
-                        );
+                        player.userID,
+                        player.displayName,
+                        player.net.connection.ipaddress,
+                        message,
+                        getDateTime());
                     }
-                }                
+                }
             }
         }
 
@@ -630,7 +820,10 @@ namespace Oxide.Plugins
         {
             if (LogAirdrop())
             {
-                executeQuery("INSERT INTO server_log_airdrop (plane, location, time) VALUES (@0, @1, @2)", plane.ToString(), location.ToString(), getDateTime());
+                executeQuery("INSERT INTO server_log_airdrop (plane, location, time) VALUES (@0, @1, @2)",
+                plane.ToString(),
+                location.ToString(),
+                getDateTime());
             }
         }
 
@@ -638,28 +831,55 @@ namespace Oxide.Plugins
         {
             //PrintWarning(entity.ToString());
             //PrintWarning(entity.transform.position.ToString());
-            if (entity is BaseHelicopter && entity.ToString().Contains("patrolhelicopter") && LogServerPatrolhelicopter())
+            if (
+                entity is BaseHelicopter &&
+                entity.ToString().Contains("patrolhelicopter") &&
+                LogServerPatrolhelicopter()
+            )
             {
-                executeQuery("INSERT INTO server_log_patrolhelicopter (plane, location, time) VALUES (@0, @1, @2)", entity.ToString(), entity.transform.position.ToString(), getDateTime());
+                executeQuery("INSERT INTO server_log_patrolhelicopter (plane, location, time) VALUES (@0, @1, @2)",
+                entity.ToString(),
+                entity.transform.position.ToString(),
+                getDateTime());
             }
-            else if (entity is CargoShip && entity.ToString().Contains("cargoship") && LogServerCargoship())
+            else if (
+                entity is CargoShip &&
+                entity.ToString().Contains("cargoship") &&
+                LogServerCargoship()
+            )
             {
-                executeQuery("INSERT INTO server_log_cargoship (plane, location, time) VALUES (@0, @1, @2)", entity.ToString(), entity.transform.position.ToString(), getDateTime());
+                executeQuery("INSERT INTO server_log_cargoship (plane, location, time) VALUES (@0, @1, @2)",
+                entity.ToString(),
+                entity.transform.position.ToString(),
+                getDateTime());
             }
-            else if (entity is CH47Helicopter && entity.ToString().Contains("ch47") && LogServerCH47())
+            else if (
+                entity is CH47Helicopter &&
+                entity.ToString().Contains("ch47") &&
+                LogServerCH47()
+            )
             {
-                executeQuery("INSERT INTO server_log_ch47 (plane, location, time) VALUES (@0, @1, @2)", entity.ToString(), entity.transform.position.ToString(), getDateTime());
+                executeQuery("INSERT INTO server_log_ch47 (plane, location, time) VALUES (@0, @1, @2)",
+                entity.ToString(),
+                entity.transform.position.ToString(),
+                getDateTime());
             }
-            else if (entity is BradleyAPC && entity.ToString().Contains("bradleyapc") && LogServerbradleyAPC())
+            else if (
+                entity is BradleyAPC &&
+                entity.ToString().Contains("bradleyapc") &&
+                LogServerbradleyAPC()
+            )
             {
-                executeQuery("INSERT INTO server_log_bradleyapc (plane, location, time) VALUES (@0, @1, @2)", entity.ToString(), entity.transform.position.ToString(), getDateTime());
+                executeQuery("INSERT INTO server_log_bradleyapc (plane, location, time) VALUES (@0, @1, @2)",
+                entity.ToString(),
+                entity.transform.position.ToString(),
+                getDateTime());
             }
         }
 
         /*********************************
         **       Console Commands       **
         *********************************/
-
         // Reload the plugin
         [ConsoleCommand("mstats.reload")]
         private void ReloadCommand(ConsoleSystem.Arg arg)
@@ -677,7 +897,8 @@ namespace Oxide.Plugins
 
         //Drop tables
         [ConsoleCommand("mstats.drop")]
-        private void DropTableCommand(ConsoleSystem.Arg arg) {
+        private void DropTableCommand(ConsoleSystem.Arg arg)
+        {
             executeQuery("DROP TABLE player_stats");
             executeQuery("DROP TABLE player_resource_gather");
             executeQuery("DROP TABLE player_crafted_item");
@@ -691,7 +912,8 @@ namespace Oxide.Plugins
             executeQuery("DROP TABLE player_authorize_list");
             executeQuery("DROP TABLE player_connect_log");
             executeQuery("DROP TABLE player_chat_command");
-            if (LogAdminCall()) {
+            if (LogAdminCall())
+            {
                 executeQuery("DROP TABLE admin_log");
             }
             if (LogChat())
@@ -725,10 +947,10 @@ namespace Oxide.Plugins
             if (LogServerbradleyAPC())
             {
                 executeQuery("DROP TABLE server_log_bradleyapc");
-            }          
+            }
             PrintWarning("Drop tables successful!\nPlease reload the plugin to create new tabels");
         }
-        
+
         private void TruncateData()
         {
             executeQuery("TRUNCATE TABLE player_stats");
@@ -744,7 +966,8 @@ namespace Oxide.Plugins
             executeQuery("TRUNCATE TABLE player_authorize_list");
             executeQuery("TRUNCATE TABLE player_connect_log");
             executeQuery("TRUNCATE TABLE player_chat_command");
-            if (LogAdminCall()) {
+            if (LogAdminCall())
+            {
                 executeQuery("TRUNCATE TABLE admin_log");
             }
             if (LogChat())
@@ -783,7 +1006,8 @@ namespace Oxide.Plugins
 
         //Drop tables
         [ConsoleCommand("mstats.empty")]
-        private void EmptyTableCommand(ConsoleSystem.Arg arg) {
+        private void EmptyTableCommand(ConsoleSystem.Arg arg)
+        {
             TruncateData();
             PrintWarning("Empty tables successful!\nPlease reload the plugin to create new tabels");
         }
@@ -791,11 +1015,11 @@ namespace Oxide.Plugins
         /*********************************
         **          Other Stuff         **
         *********************************/
-
         bool hasPermission(BasePlayer player, string permissionName)
         {
             if (player.net.connection.authLevel > 1) return true;
-            return permission.UserHasPermission(player.userID.ToString(), permissionName);
+            return permission
+                .UserHasPermission(player.userID.ToString(), permissionName);
         }
 
         bool usingMySQL()
@@ -823,7 +1047,8 @@ namespace Oxide.Plugins
             return Convert.ToBoolean(Config["_LogAirdrops"]);
         }
 
-        bool LogAdminCall() {
+        bool LogAdminCall()
+        {
             return Convert.ToBoolean(Config["_AdminLog"]);
         }
 
@@ -863,8 +1088,9 @@ namespace Oxide.Plugins
         string formatBodyPartName(HitInfo hitInfo)
         {
             string bodypart = "Unknown";
-            bodypart = StringPool.Get(Convert.ToUInt32(hitInfo?.HitBone)) ?? "Unknown";
-            if ((bool)string.IsNullOrEmpty(bodypart)) bodypart = "Unknown";
+            bodypart =
+                StringPool.Get(Convert.ToUInt32(hitInfo?.HitBone)) ?? "Unknown";
+            if ((bool) string.IsNullOrEmpty(bodypart)) bodypart = "Unknown";
             for (int i = 0; i < 10; i++)
             {
                 bodypart = bodypart.Replace(i.ToString(), "");
@@ -887,26 +1113,6 @@ namespace Oxide.Plugins
             bodypart = bodypart.Replace("Unknown", "Bleed to death");
             bodypart = bodypart.ToUpper();
             return bodypart;
-        }
-
-        //Fix names
-        static string EncodeNonAsciiCharacters(string value)
-        {
-            StringBuilder sb = new StringBuilder();
-            foreach (char c in value)
-            {
-                if (c > 127)
-                {
-                    // This character is too big for ASCII
-                    string encodedValue = "";
-                    sb.Append(encodedValue);
-                }
-                else
-                {
-                    sb.Append(c);
-                }
-            }
-            return sb.ToString();
         }
 
         //Curent day
@@ -939,7 +1145,5 @@ namespace Oxide.Plugins
             }
             return value = majorPluginUpdate + "." + minorPluginUpdate;
         }
-
     }
-
 }
