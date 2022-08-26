@@ -394,7 +394,7 @@ namespace Oxide.Plugins
                         .english;
 
                 //Puts(playerID + name + item_name + getDate());
-                executeQuery("INSERT INTO player_place_building (player_id, player_name, building, date) VALUES (@0, @1, @2, @3, @4)" +
+                executeQuery("INSERT INTO player_place_building (player_id, player_name, building, date) VALUES (@0, @1, @2, @3)" +
                 "ON DUPLICATE KEY UPDATE amount = amount + 1",
                 playerID,
                 playerName,
@@ -407,7 +407,7 @@ namespace Oxide.Plugins
                     plan.GetOwnerItemDefinition().displayName.english;
 
                 //Puts(playerID + name + item_name + getDate());
-                executeQuery("INSERT INTO player_place_deployable (player_id, player_name, deployable, date) VALUES (@0, @1, @2, @3, @4)" +
+                executeQuery("INSERT INTO player_place_deployable (player_id, player_name, deployable, date) VALUES (@0, @1, @2, @3)" +
                 "ON DUPLICATE KEY UPDATE amount = amount + 1",
                 playerID,
                 playerName,
