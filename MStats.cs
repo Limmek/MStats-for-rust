@@ -106,7 +106,7 @@ namespace Oxide.Plugins
         public void executeQuery(string query, params object[] data)
         {
             var sql = Sql.Builder.Append(query, data);
-            _mySql.Insert (sql, _mySqlConnection);
+            _mySql.Insert(sql, _mySqlConnection);
         }
 
         private void createTablesOnConnect()
@@ -185,8 +185,7 @@ namespace Oxide.Plugins
             RustSave = Convert.ToInt32(Protocol.save);
             RustWorldSize = ConVar.Server.worldsize;
             RustSeed = ConVar.Server.seed;
-            Puts($"Game Version: {RustNetwork}.{RustSave}, size: {
-                RustWorldSize}, seed: {RustSeed}");
+            Puts($"Game Version: {RustNetwork}.{RustSave}, size: {RustWorldSize}, seed: {RustSeed}");
 
             string curVersion = Version.ToString();
             string[] version = curVersion.Split('.');
@@ -274,13 +273,13 @@ namespace Oxide.Plugins
         {
             foreach (var player in BasePlayer.activePlayerList)
             {
-                OnPlayerDisconnected (player);
+                OnPlayerDisconnected(player);
             }
             timer
                 .Once(5,
                 () =>
                 {
-                    _mySql.CloseDb (_mySqlConnection);
+                    _mySql.CloseDb(_mySqlConnection);
                     _mySqlConnection = null;
                 });
         }
@@ -323,7 +322,7 @@ namespace Oxide.Plugins
                     .TotalSeconds -
                 loginTime[player],
                 player.userID);
-                loginTime.Remove (player);
+                loginTime.Remove(player);
             }
             executeQuery("INSERT INTO player_connect_log (player_id, player_name, state, time) VALUES (@0, @1, @2, @3)",
             player.userID,
@@ -341,28 +340,28 @@ namespace Oxide.Plugins
         {
             if (entity is BasePlayer)
             {
-                executeQuery("INSERT INTO player_resource_gather (player_id, player_name, resource, amount, date, player_name) VALUES (@0, @1, @2, @3, @4, @5)" +
+                executeQuery("INSERT INTO player_resource_gather (player_id, player_name, resource, amount, date) VALUES (@0, @1, @2, @3, @4)" +
                 "ON DUPLICATE KEY UPDATE amount = amount + " +
                 item.amount,
-                ((BasePlayer) entity).userID,
+                ((BasePlayer)entity).userID,
+                ((BasePlayer)entity).displayName,
                 item.info.displayName.english,
                 item.amount,
-                getDate(),
-                ((BasePlayer) entity).displayName);
+                getDate());
             }
         }
 
         //Player Pickup resource
         void OnCollectiblePickup(Item item, BasePlayer player)
         {
-            executeQuery("INSERT INTO player_resource_gather (player_id, player_name, resource, amount, date, player_name) VALUES (@0, @1, @2, @3, @4, @5)" +
+            executeQuery("INSERT INTO player_resource_gather (player_id, player_name, resource, amount, date) VALUES (@0, @1, @2, @3, @4)" +
             "ON DUPLICATE KEY UPDATE amount = amount +" +
             item.amount,
             player.userID,
+            player.displayName,
             item.info.displayName.english,
             item.amount,
-            getDate(),
-            player.displayName);
+            getDate());
         }
 
         //Player crafted item
@@ -387,7 +386,7 @@ namespace Oxide.Plugins
             if (placedObject is BuildingBlock)
             {
                 string item_name =
-                    ((BuildingBlock) placedObject)
+                    ((BuildingBlock)placedObject)
                         .blockDefinition
                         .info
                         .name
@@ -418,8 +417,8 @@ namespace Oxide.Plugins
             {
                 var cupboard = go.GetComponent<BuildingPrivlidge>();
                 BasePlayer player = plan.GetOwnerPlayer();
-                OnCupboardAuthorize (cupboard, player);
-                OnCupboardAuthorize (cupboard, player); // Dirty fix for set access to 1
+                OnCupboardAuthorize(cupboard, player);
+                OnCupboardAuthorize(cupboard, player); // Dirty fix for set access to 1
             }
         }
 
@@ -502,7 +501,7 @@ namespace Oxide.Plugins
             {
                 if (entity is BuildingBlock)
                 {
-                    BasePlayer attacker = ((BasePlayer) entity.lastAttacker);
+                    BasePlayer attacker = ((BasePlayer)entity.lastAttacker);
                     string weapon = "Unknown";
                     try
                     {
@@ -515,20 +514,20 @@ namespace Oxide.Plugins
                     try
                     {
                         executeQuery("INSERT INTO player_destroy_building (player_id, player_name, building, building_grade, weapon, time) VALUES (@0, @1, @2, @3, @4, @5)",
-                        ((BasePlayer) entity.lastAttacker).userID,
-                        ((BasePlayer) entity.lastAttacker).displayName,
-                        ((BuildingBlock) entity)
+                        ((BasePlayer)entity.lastAttacker).userID,
+                        ((BasePlayer)entity.lastAttacker).displayName,
+                        ((BuildingBlock)entity)
                             .blockDefinition
                             .info
                             .name
                             .english,
-                        ((BuildingBlock) entity)
+                        ((BuildingBlock)entity)
                             .currentGrade
                             .gradeBase
                             .name
                             .ToUpper() +
                         " (" +
-                        ((BuildingBlock) entity).MaxHealth() +
+                        ((BuildingBlock)entity).MaxHealth() +
                         ")",
                         weapon,
                         getDateTime());
@@ -546,7 +545,7 @@ namespace Oxide.Plugins
                         try
                         {
                             weapon =
-                                ((BasePlayer) entity.lastAttacker)
+                                ((BasePlayer)entity.lastAttacker)
                                     .GetActiveItem()
                                     .info
                                     .displayName
@@ -563,11 +562,11 @@ namespace Oxide.Plugins
                             weapon += "(BLEED TO DEATH)";
                             distance =
                                 GetDistance(entity,
-                                (BasePlayer) entity.lastAttacker);
+                                (BasePlayer)entity.lastAttacker);
                         }
                         executeQuery("INSERT INTO player_kill_animal (player_id, player_name, animal, distance, weapon, time) VALUES (@0, @1, @2, @3, @4, @5)",
-                        ((BasePlayer) entity.lastAttacker).userID,
-                        ((BasePlayer) entity.lastAttacker).displayName,
+                        ((BasePlayer)entity.lastAttacker).userID,
+                        ((BasePlayer)entity.lastAttacker).displayName,
                         GetFormattedAnimal(entity.ToString()),
                         distance,
                         weapon,
@@ -586,7 +585,7 @@ namespace Oxide.Plugins
                         try
                         {
                             weapon =
-                                ((BasePlayer) entity.lastAttacker)
+                                ((BasePlayer)entity.lastAttacker)
                                     .GetActiveItem()
                                     .info
                                     .displayName
@@ -603,13 +602,13 @@ namespace Oxide.Plugins
                             weapon += "(BLEED TO DEATH)";
                             distance =
                                 GetDistance(entity,
-                                (BasePlayer) entity.lastAttacker);
+                                (BasePlayer)entity.lastAttacker);
                         }
                         executeQuery("INSERT INTO player_kill (killer_id, killer_name, victim_id, victim_name, bodypart, weapon, distance, time) VALUES (@0, @1, @2, @3, @4, @5, @6, @7)",
-                        ((BasePlayer) entity.lastAttacker).userID,
-                        ((BasePlayer) entity.lastAttacker).displayName,
-                        ((BasePlayer) entity).userID,
-                        ((BasePlayer) entity).displayName,
+                        ((BasePlayer)entity.lastAttacker).userID,
+                        ((BasePlayer)entity.lastAttacker).displayName,
+                        ((BasePlayer)entity).userID,
+                        ((BasePlayer)entity).displayName,
                         formatBodyPartName(hitInfo),
                         weapon,
                         distance,
@@ -628,8 +627,8 @@ namespace Oxide.Plugins
                     string cause = entity.lastDamage.ToString().ToUpper();
                     executeQuery("INSERT INTO player_death (player_id, player_name, cause, date, time) VALUES (@0, @1, @2, @3, @4)" +
                     "ON DUPLICATE KEY UPDATE count = count + 1",
-                    ((BasePlayer) entity).userID,
-                    ((BasePlayer) entity).displayName,
+                    ((BasePlayer)entity).userID,
+                    ((BasePlayer)entity).displayName,
                     cause,
                     getDate(),
                     getDateTime());
@@ -709,7 +708,7 @@ namespace Oxide.Plugins
             if (arg.Connection == null) return;
             var command = arg.cmd.FullName;
             var args = arg.GetString(0);
-            BasePlayer player = (BasePlayer) arg.Connection.player;
+            BasePlayer player = (BasePlayer)arg.Connection.player;
             executeQuery("INSERT INTO player_chat_command (player_id, player_name, command, text, date) VALUES (@0, @1, @2, @3, @4)",
             player.userID,
             player.displayName,
@@ -1090,7 +1089,7 @@ namespace Oxide.Plugins
             string bodypart = "Unknown";
             bodypart =
                 StringPool.Get(Convert.ToUInt32(hitInfo?.HitBone)) ?? "Unknown";
-            if ((bool) string.IsNullOrEmpty(bodypart)) bodypart = "Unknown";
+            if ((bool)string.IsNullOrEmpty(bodypart)) bodypart = "Unknown";
             for (int i = 0; i < 10; i++)
             {
                 bodypart = bodypart.Replace(i.ToString(), "");
