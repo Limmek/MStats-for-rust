@@ -1,4 +1,10 @@
-﻿using ConVar;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Text;
+using ConVar;
 using Facepunch;
 using Oxide.Core;
 using Oxide.Core.Configuration;
@@ -8,21 +14,12 @@ using Oxide.Core.MySql;
 using Oxide.Core.Plugins;
 using Oxide.Game.Rust;
 using Rust;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Text;
 using UnityEngine;
 
 namespace Oxide.Plugins
 {
     [
-        Info(
-            "MStats",
-            "Limmek",
-            "1.9.6") /*, ResourceId = 0*/
+        Info("MStats", "Limmek", "1.10.6") /*, ResourceId = 0*/
     ]
     [Description("Logs player statistics and other server stuff to MySql")]
     public class MStats : RustPlugin
@@ -55,8 +52,9 @@ namespace Oxide.Plugins
             PrintWarning("Creating a new configuration file");
             Config.Clear();
             Config["Host"] = "127.0.0.1";
-            Config["Database"] = "database";
             Config["Port"] = 3306;
+            Config["Database"] = "database";
+            Config["Charset"] = "utf8";
             Config["Username"] = "username";
             Config["Password"] = "password";
             Config["ForceDatabaseCreation"] = false;
@@ -73,7 +71,7 @@ namespace Oxide.Plugins
             Config["_LogServerPatrolhelicopter"] = false;
             Config["_LogServerbradleyAPC"] = false;
             Config["_LogServerCH47"] = false;
-            Config["Version"] = "1.9.6";
+            Config["Version"] = "1.10.6";
             SaveConfig();
         }
 
@@ -106,7 +104,7 @@ namespace Oxide.Plugins
         public void executeQuery(string query, params object[] data)
         {
             var sql = Sql.Builder.Append(query, data);
-            _mySql.Insert(sql, _mySqlConnection);
+            _mySql.Insert (sql, _mySqlConnection);
         }
 
         private void createTablesOnConnect()
@@ -116,56 +114,102 @@ namespace Oxide.Plugins
                 if (Convert.ToBoolean(Config["ForceDatabaseCreation"]))
                 {
                     executeQuery("CREATE DATABASE IF NOT EXISTS " +
-                    Config["Database"].ToString());
+                    Config["Database"].ToString() +
+                    " DEFAULT CHARACTER SET " +
+                    Config["Charset"].ToString());
                 }
-                executeQuery("CREATE TABLE IF NOT EXISTS player_stats (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, player_ip VARCHAR(128) NULL, player_state INT(1) NULL DEFAULT '0', player_online_time BIGINT(20) DEFAULT '0', player_last_login TIMESTAMP NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_resource_gather (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, resource VARCHAR(255) NULL, amount INT(32), date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerGather` (`player_id`,`resource`,`date`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_crafted_item (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, item VARCHAR(128), amount INT(32), date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerItem` (`player_id`,`item`,`date`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_bullets_fired (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, bullet_name VARCHAR(128) NULL, bullets_fired INT(32) DEFAULT '1', weapon_name VARCHAR(128) NULL, date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerBullet` (`player_id`,`bullet_name`,`weapon_name`,`date`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_kill_animal (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, animal VARCHAR(128), distance DOUBLE NULL DEFAULT 0, weapon VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_kill (id INT(11) NOT NULL AUTO_INCREMENT, killer_id BIGINT(20) NULL, killer_name VARCHAR(255) NULL, victim_id BIGINT(20) NULL, victim_name VARCHAR(255) NULL, bodypart VARCHAR(128), weapon VARCHAR(128), distance DOUBLE NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_death (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, cause VARCHAR(128), count INT(11) NULL DEFAULT '1', date DATE NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`,`date`,`cause`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_destroy_building (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, building VARCHAR(128), building_grade VARCHAR(128), weapon VARCHAR(128), time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_place_building (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, building VARCHAR(128) NULL, amount INT(32) NULL DEFAULT '1', date DATE NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`,`date`,`building`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_place_deployable (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, deployable VARCHAR(128) NULL, amount INT(32) NULL DEFAULT '1', date DATE NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`,`date`,`deployable`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_authorize_list (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, cupboard VARCHAR(128) NULL, access INT(32) NULL DEFAULT '0', time TIMESTAMP NULL, PRIMARY KEY (`id`), UNIQUE (`Cupboard`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_connect_log (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, state VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
-                executeQuery("CREATE TABLE IF NOT EXISTS player_chat_command (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, command VARCHAR(128) NULL, text VARCHAR(255) NULL DEFAULT NULL, date TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB;");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_stats (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, player_ip VARCHAR(128) NULL, player_state INT(1) NULL DEFAULT '0', player_online_time BIGINT(20) DEFAULT '0', player_last_login TIMESTAMP NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                Config["Charset"].ToString() +
+                "';");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_resource_gather (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, resource VARCHAR(255) NULL, amount INT(32), date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerGather` (`player_id`,`resource`,`date`) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                Config["Charset"].ToString() +
+                "';");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_crafted_item (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, item VARCHAR(128), amount INT(32), date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerItem` (`player_id`,`item`,`date`) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                Config["Charset"].ToString() +
+                "';");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_bullets_fired (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, bullet_name VARCHAR(128) NULL, bullets_fired INT(32) DEFAULT '1', weapon_name VARCHAR(128) NULL, date DATE NULL, PRIMARY KEY (`id`), UNIQUE KEY `PlayerBullet` (`player_id`,`bullet_name`,`weapon_name`,`date`) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                Config["Charset"].ToString() +
+                "';");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_kill_animal (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, animal VARCHAR(128), distance DOUBLE NULL DEFAULT 0, weapon VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                Config["Charset"].ToString() +
+                "';");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_kill (id INT(11) NOT NULL AUTO_INCREMENT, killer_id BIGINT(20) NULL, killer_name VARCHAR(255) NULL, victim_id BIGINT(20) NULL, victim_name VARCHAR(255) NULL, bodypart VARCHAR(128), weapon VARCHAR(128), distance DOUBLE NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                Config["Charset"].ToString() +
+                "';");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_death (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, cause VARCHAR(128), count INT(11) NULL DEFAULT '1', date DATE NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`,`date`,`cause`) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                Config["Charset"].ToString() +
+                "';");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_destroy_building (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, building VARCHAR(128), building_grade VARCHAR(128), weapon VARCHAR(128), time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                Config["Charset"].ToString() +
+                "';");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_place_building (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, building VARCHAR(128) NULL, amount INT(32) NULL DEFAULT '1', date DATE NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`,`date`,`building`) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                Config["Charset"].ToString() +
+                "';");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_place_deployable (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, deployable VARCHAR(128) NULL, amount INT(32) NULL DEFAULT '1', date DATE NULL, PRIMARY KEY (`id`), UNIQUE (`player_id`,`date`,`deployable`) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                Config["Charset"].ToString() +
+                "';");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_authorize_list (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, cupboard VARCHAR(128) NULL, access INT(32) NULL DEFAULT '0', time TIMESTAMP NULL, PRIMARY KEY (`id`), UNIQUE (`Cupboard`) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                Config["Charset"].ToString() +
+                "';");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_connect_log (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, state VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                Config["Charset"].ToString() +
+                "';");
+                executeQuery("CREATE TABLE IF NOT EXISTS player_chat_command (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, command VARCHAR(128) NULL, text VARCHAR(255) NULL DEFAULT NULL, date TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB DEFAULT CHARSET='" +
+                Config["Charset"].ToString() +
+                "';");
                 if (LogAdminCall())
                 {
-                    executeQuery("CREATE TABLE IF NOT EXISTS admin_log	(id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, player_ip VARCHAR(128) NULL, text VARCHAR(255) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
+                    executeQuery("CREATE TABLE IF NOT EXISTS admin_log	(id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, player_ip VARCHAR(128) NULL, text VARCHAR(255) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                    Config["Charset"].ToString() +
+                    "';");
                 }
                 if (LogChat())
                 {
-                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_chat (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, player_ip VARCHAR(128), chat_message VARCHAR(255), admin INT(32) NULL DEFAULT '0', time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
+                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_chat (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, player_ip VARCHAR(128), chat_message VARCHAR(255), admin INT(32) NULL DEFAULT '0', time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                    Config["Charset"].ToString() +
+                    "';");
                 }
                 if (LogTeamChat())
                 {
-                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_chat_team (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, player_ip VARCHAR(128), chat_message VARCHAR(255), admin INT(32) NULL DEFAULT '0', time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
+                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_chat_team (id INT(11) NOT NULL AUTO_INCREMENT, player_id BIGINT(20) NULL, player_name VARCHAR(255) NULL, player_ip VARCHAR(128), chat_message VARCHAR(255), admin INT(32) NULL DEFAULT '0', time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                    Config["Charset"].ToString() +
+                    "';");
                 }
                 if (LogConsole())
                 {
-                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_console (id INT(11) NOT NULL AUTO_INCREMENT, server_message VARCHAR(255) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
+                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_console (id INT(11) NOT NULL AUTO_INCREMENT, server_message VARCHAR(255) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                    Config["Charset"].ToString() +
+                    "';");
                 }
                 if (LogAirdrop())
                 {
-                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_airdrop	(id INT(11) NOT NULL AUTO_INCREMENT, plane VARCHAR(128) NULL, location VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB;");
+                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_airdrop	(id INT(11) NOT NULL AUTO_INCREMENT, plane VARCHAR(128) NULL, location VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (`id`) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                    Config["Charset"].ToString() +
+                    "';");
                 }
                 if (LogServerPatrolhelicopter())
                 {
-                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_patrolhelicopter (id INT(11) NOT NULL AUTO_INCREMENT, plane VARCHAR(128) NULL, location VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (id) ) ENGINE=InnoDB;");
+                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_patrolhelicopter (id INT(11) NOT NULL AUTO_INCREMENT, plane VARCHAR(128) NULL, location VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (id) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                    Config["Charset"].ToString() +
+                    "';");
                 }
                 if (LogServerCargoship())
                 {
-                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_cargoship (id INT(11) NOT NULL AUTO_INCREMENT, plane VARCHAR(128) NULL, location VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (id) ) ENGINE=InnoDB;");
+                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_cargoship (id INT(11) NOT NULL AUTO_INCREMENT, plane VARCHAR(128) NULL, location VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (id) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                    Config["Charset"].ToString() +
+                    "';");
                 }
                 if (LogServerCH47())
                 {
-                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_ch47 (id INT(11) NOT NULL AUTO_INCREMENT, plane VARCHAR(128) NULL, location VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (id) ) ENGINE=InnoDB;");
+                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_ch47 (id INT(11) NOT NULL AUTO_INCREMENT, plane VARCHAR(128) NULL, location VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (id) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                    Config["Charset"].ToString() +
+                    "';");
                 }
                 if (LogServerbradleyAPC())
                 {
-                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_bradleyapc (id INT(11) NOT NULL AUTO_INCREMENT, plane VARCHAR(128) NULL, location VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (id) ) ENGINE=InnoDB;");
+                    executeQuery("CREATE TABLE IF NOT EXISTS server_log_bradleyapc (id INT(11) NOT NULL AUTO_INCREMENT, plane VARCHAR(128) NULL, location VARCHAR(128) NULL, time TIMESTAMP NULL, PRIMARY KEY (id) ) ENGINE=InnoDB DEFAULT CHARSET='" +
+                    Config["Charset"].ToString() +
+                    "';");
                 }
             }
             catch (Exception ex)
@@ -185,7 +229,8 @@ namespace Oxide.Plugins
             RustSave = Convert.ToInt32(Protocol.save);
             RustWorldSize = ConVar.Server.worldsize;
             RustSeed = ConVar.Server.seed;
-            Puts($"Game Version: {RustNetwork}.{RustSave}, size: {RustWorldSize}, seed: {RustSeed}");
+            Puts($"Game Version: {RustNetwork}.{RustSave}, size: {
+                RustWorldSize}, seed: {RustSeed}");
 
             string curVersion = Version.ToString();
             string[] version = curVersion.Split('.');
@@ -273,13 +318,13 @@ namespace Oxide.Plugins
         {
             foreach (var player in BasePlayer.activePlayerList)
             {
-                OnPlayerDisconnected(player);
+                OnPlayerDisconnected (player);
             }
             timer
                 .Once(5,
                 () =>
                 {
-                    _mySql.CloseDb(_mySqlConnection);
+                    _mySql.CloseDb (_mySqlConnection);
                     _mySqlConnection = null;
                 });
         }
@@ -322,7 +367,7 @@ namespace Oxide.Plugins
                     .TotalSeconds -
                 loginTime[player],
                 player.userID);
-                loginTime.Remove(player);
+                loginTime.Remove (player);
             }
             executeQuery("INSERT INTO player_connect_log (player_id, player_name, state, time) VALUES (@0, @1, @2, @3)",
             player.userID,
@@ -343,8 +388,8 @@ namespace Oxide.Plugins
                 executeQuery("INSERT INTO player_resource_gather (player_id, player_name, resource, amount, date) VALUES (@0, @1, @2, @3, @4)" +
                 "ON DUPLICATE KEY UPDATE amount = amount + " +
                 item.amount,
-                ((BasePlayer)entity).userID,
-                ((BasePlayer)entity).displayName,
+                ((BasePlayer) entity).userID,
+                ((BasePlayer) entity).displayName,
                 item.info.displayName.english,
                 item.amount,
                 getDate());
@@ -386,7 +431,7 @@ namespace Oxide.Plugins
             if (placedObject is BuildingBlock)
             {
                 string item_name =
-                    ((BuildingBlock)placedObject)
+                    ((BuildingBlock) placedObject)
                         .blockDefinition
                         .info
                         .name
@@ -417,8 +462,8 @@ namespace Oxide.Plugins
             {
                 var cupboard = go.GetComponent<BuildingPrivlidge>();
                 BasePlayer player = plan.GetOwnerPlayer();
-                OnCupboardAuthorize(cupboard, player);
-                OnCupboardAuthorize(cupboard, player); // Dirty fix for set access to 1
+                OnCupboardAuthorize (cupboard, player);
+                OnCupboardAuthorize (cupboard, player); // Dirty fix for set access to 1
             }
         }
 
@@ -501,7 +546,7 @@ namespace Oxide.Plugins
             {
                 if (entity is BuildingBlock)
                 {
-                    BasePlayer attacker = ((BasePlayer)entity.lastAttacker);
+                    BasePlayer attacker = ((BasePlayer) entity.lastAttacker);
                     string weapon = "Unknown";
                     try
                     {
@@ -514,20 +559,20 @@ namespace Oxide.Plugins
                     try
                     {
                         executeQuery("INSERT INTO player_destroy_building (player_id, player_name, building, building_grade, weapon, time) VALUES (@0, @1, @2, @3, @4, @5)",
-                        ((BasePlayer)entity.lastAttacker).userID,
-                        ((BasePlayer)entity.lastAttacker).displayName,
-                        ((BuildingBlock)entity)
+                        ((BasePlayer) entity.lastAttacker).userID,
+                        ((BasePlayer) entity.lastAttacker).displayName,
+                        ((BuildingBlock) entity)
                             .blockDefinition
                             .info
                             .name
                             .english,
-                        ((BuildingBlock)entity)
+                        ((BuildingBlock) entity)
                             .currentGrade
                             .gradeBase
                             .name
                             .ToUpper() +
                         " (" +
-                        ((BuildingBlock)entity).MaxHealth() +
+                        ((BuildingBlock) entity).MaxHealth() +
                         ")",
                         weapon,
                         getDateTime());
@@ -545,7 +590,7 @@ namespace Oxide.Plugins
                         try
                         {
                             weapon =
-                                ((BasePlayer)entity.lastAttacker)
+                                ((BasePlayer) entity.lastAttacker)
                                     .GetActiveItem()
                                     .info
                                     .displayName
@@ -562,11 +607,11 @@ namespace Oxide.Plugins
                             weapon += "(BLEED TO DEATH)";
                             distance =
                                 GetDistance(entity,
-                                (BasePlayer)entity.lastAttacker);
+                                (BasePlayer) entity.lastAttacker);
                         }
                         executeQuery("INSERT INTO player_kill_animal (player_id, player_name, animal, distance, weapon, time) VALUES (@0, @1, @2, @3, @4, @5)",
-                        ((BasePlayer)entity.lastAttacker).userID,
-                        ((BasePlayer)entity.lastAttacker).displayName,
+                        ((BasePlayer) entity.lastAttacker).userID,
+                        ((BasePlayer) entity.lastAttacker).displayName,
                         GetFormattedAnimal(entity.ToString()),
                         distance,
                         weapon,
@@ -585,7 +630,7 @@ namespace Oxide.Plugins
                         try
                         {
                             weapon =
-                                ((BasePlayer)entity.lastAttacker)
+                                ((BasePlayer) entity.lastAttacker)
                                     .GetActiveItem()
                                     .info
                                     .displayName
@@ -602,13 +647,13 @@ namespace Oxide.Plugins
                             weapon += "(BLEED TO DEATH)";
                             distance =
                                 GetDistance(entity,
-                                (BasePlayer)entity.lastAttacker);
+                                (BasePlayer) entity.lastAttacker);
                         }
                         executeQuery("INSERT INTO player_kill (killer_id, killer_name, victim_id, victim_name, bodypart, weapon, distance, time) VALUES (@0, @1, @2, @3, @4, @5, @6, @7)",
-                        ((BasePlayer)entity.lastAttacker).userID,
-                        ((BasePlayer)entity.lastAttacker).displayName,
-                        ((BasePlayer)entity).userID,
-                        ((BasePlayer)entity).displayName,
+                        ((BasePlayer) entity.lastAttacker).userID,
+                        ((BasePlayer) entity.lastAttacker).displayName,
+                        ((BasePlayer) entity).userID,
+                        ((BasePlayer) entity).displayName,
                         formatBodyPartName(hitInfo),
                         weapon,
                         distance,
@@ -627,8 +672,8 @@ namespace Oxide.Plugins
                     string cause = entity.lastDamage.ToString().ToUpper();
                     executeQuery("INSERT INTO player_death (player_id, player_name, cause, date, time) VALUES (@0, @1, @2, @3, @4)" +
                     "ON DUPLICATE KEY UPDATE count = count + 1",
-                    ((BasePlayer)entity).userID,
-                    ((BasePlayer)entity).displayName,
+                    ((BasePlayer) entity).userID,
+                    ((BasePlayer) entity).displayName,
                     cause,
                     getDate(),
                     getDateTime());
@@ -661,7 +706,6 @@ namespace Oxide.Plugins
         }
 
         //Using Cupboard priviliges blocked
-
         void OnCupboardDeauthorize(
             BuildingPrivlidge privilege,
             BasePlayer player
@@ -702,13 +746,12 @@ namespace Oxide.Plugins
         **      Log Console Stuff       **
         *********************************/
         // log Server commands
-
         void OnServerCommand(ConsoleSystem.Arg arg)
         {
             if (arg.Connection == null) return;
             var command = arg.cmd.FullName;
             var args = arg.GetString(0);
-            BasePlayer player = (BasePlayer)arg.Connection.player;
+            BasePlayer player = (BasePlayer) arg.Connection.player;
             executeQuery("INSERT INTO player_chat_command (player_id, player_name, command, text, date) VALUES (@0, @1, @2, @3, @4)",
             player.userID,
             player.displayName,
@@ -1089,7 +1132,7 @@ namespace Oxide.Plugins
             string bodypart = "Unknown";
             bodypart =
                 StringPool.Get(Convert.ToUInt32(hitInfo?.HitBone)) ?? "Unknown";
-            if ((bool)string.IsNullOrEmpty(bodypart)) bodypart = "Unknown";
+            if ((bool) string.IsNullOrEmpty(bodypart)) bodypart = "Unknown";
             for (int i = 0; i < 10; i++)
             {
                 bodypart = bodypart.Replace(i.ToString(), "");
