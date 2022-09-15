@@ -52,7 +52,3 @@ After Drop Table plugin must be reloaded for a new tables to be created!</br>
 **x.x** = Plugin version **1.0** </br>
 **d** = Database version **1**</br>
 The database version is for the plugin to respond on update if an update on tables is made and might need to be removed.
-
-------
-If you have any problems with the plugin please leave a comment or send me a message!
-Keep in mind this is my second plugin!
