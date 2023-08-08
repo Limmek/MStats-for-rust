@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -410,13 +410,13 @@ namespace Oxide.Plugins
         }
 
         //Player crafted item
-        void OnItemCraftFinished(ItemCraftTask task, Item item)
+        void OnItemCraftFinished(ItemCraftTask task, Item item, ItemCrafter crafter)
         {
             executeQuery("INSERT INTO player_crafted_item (player_id, player_name, item, amount, date) VALUES (@0, @1, @2, @3, @4)" +
             "ON DUPLICATE KEY UPDATE amount = amount +" +
             item.amount,
-            task.owner.userID,
-            task.owner.displayName,
+            crafter.owner.userID,
+            crafter.owner.displayName,
             item.info.displayName.english,
             item.amount,
             getDate());
