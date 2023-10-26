@@ -926,6 +926,10 @@ namespace Oxide.Plugins
         [ConsoleCommand("mstats.reload")]
         private void ReloadCommand(ConsoleSystem.Arg arg)
         {
+            BasePlayer player = arg?.Player() ?? null; 
+            if (player != null && !player.IsAdmin) 
+                return;
+
             try
             {
                 PrintWarning("Reloading plugin!");
@@ -941,6 +945,10 @@ namespace Oxide.Plugins
         [ConsoleCommand("mstats.drop")]
         private void DropTableCommand(ConsoleSystem.Arg arg)
         {
+            BasePlayer player = arg?.Player() ?? null; 
+            if (player != null && !player.IsAdmin) 
+                return;
+
             executeQuery("DROP TABLE player_stats");
             executeQuery("DROP TABLE player_resource_gather");
             executeQuery("DROP TABLE player_crafted_item");
@@ -1050,6 +1058,10 @@ namespace Oxide.Plugins
         [ConsoleCommand("mstats.empty")]
         private void EmptyTableCommand(ConsoleSystem.Arg arg)
         {
+            BasePlayer player = arg?.Player() ?? null; 
+            if (player != null && !player.IsAdmin) 
+                return;
+
             TruncateData();
             PrintWarning("Empty tables successful!\nPlease reload the plugin to create new tabels");
         }
