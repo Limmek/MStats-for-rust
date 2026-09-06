@@ -36,22 +36,30 @@ document uses the Oxide paths.
 1. **Oxide:** make sure the Oxide MySQL extension (`RustDedicated_Data/Managed/Oxide.MySql.dll`) is
    installed. It ships with Oxide.Rust; if it is missing, download it from the Oxide.Rust release page.
    **Carbon:** nothing extra is needed – the MySQL library is part of Carbon itself.
-2. Create the database and a user:
+2. Create a MySQL user for the plugin. The database itself does **not** have to exist –
+   `CreateDatabaseIfMissing` is on by default, so MStats runs `CREATE DATABASE IF NOT EXISTS mstats
+   ... utf8mb4` on first connect and then creates all of its tables:
 
    ```sql
-   CREATE DATABASE mstats DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
    CREATE USER 'mstats'@'%' IDENTIFIED BY 'a-strong-password';
+   GRANT CREATE ON *.* TO 'mstats'@'%';
    GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, DROP ON mstats.* TO 'mstats'@'%';
    ```
 
-   `CREATE`, `ALTER` and `INDEX` are needed so the plugin can create and migrate its own tables.
-   `DROP` is only needed for `mstats.drop`, `mstats.empty` and wipe truncation.
-   If you enable `CreateDatabaseIfMissing` the user additionally needs the global `CREATE` privilege.
+   The global `CREATE` grant is what allows the user to create the database. `CREATE`, `ALTER` and
+   `INDEX` on `mstats.*` let the plugin create and migrate its own tables; `DROP` is only needed for
+   `mstats.drop`, `mstats.empty` and wipe truncation.
+
+   If you would rather create the database yourself (or the hosting provider does not allow global
+   `CREATE`), create it with
+   `CREATE DATABASE mstats DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`, skip the
+   `GRANT CREATE ON *.*` line and set `"CreateDatabaseIfMissing": false`.
 3. Copy `MStats.cs` to `oxide/plugins/` (Carbon: `carbon/plugins/`). The plugin loads, writes
    `oxide/config/MStats.json` (Carbon: `carbon/configs/MStats.json`) and stays **disabled** until you
    configure it.
-4. Edit the config file (see below), set `"Enabled": true` and run `oxide.reload MStats`
-   (Carbon: `c.reload MStats`, or `mstats.reload` on either).
+4. Edit the config file (see below): fill in `Database.*`, set `"Enabled": true` and run
+   `oxide.reload MStats` (Carbon: `c.reload MStats`, or `mstats.reload` on either). The database and
+   all tables are created automatically on the first successful connection.
 5. Check the console: `mstats.info` prints connection state, schema state and enabled features.
 
 ---
@@ -67,7 +75,7 @@ document uses the Oxide paths.
     "Database": "mstats",
     "Username": "mstats",
     "Password": "a-strong-password",
-    "CreateDatabaseIfMissing": false,
+    "CreateDatabaseIfMissing": true,
     "UseUtcTimestamps": true,
     "HealthCheckIntervalSeconds": 30,
     "ReconnectIntervalSeconds": 60,
@@ -119,7 +127,7 @@ document uses the Oxide paths.
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Enabled`                    | Master switch. Nothing is written while `false`.                                                                                                                                            |
 | `Database.*`                 | Connection settings. The connection always uses `CharSet=utf8mb4`.                                                                                                                          |
-| `CreateDatabaseIfMissing`    | Run `CREATE DATABASE IF NOT EXISTS` before connecting (needs global `CREATE`).                                                                                                              |
+| `CreateDatabaseIfMissing`    | Run `CREATE DATABASE IF NOT EXISTS ... utf8mb4` before connecting (default `true`; needs the global `CREATE` privilege). Set to `false` if you create the database yourself.                |
 | `UseUtcTimestamps`           | Store all `DATETIME`/`DATE` values in UTC (recommended) or in server local time.                                                                                                            |
 | `HealthCheckIntervalSeconds` | How often the connection is pinged (min 5).                                                                                                                                                 |
 | `ReconnectIntervalSeconds`   | First reconnect delay after a failure (min 10). Doubles per failed attempt, up to 15 minutes.                                                                                               |

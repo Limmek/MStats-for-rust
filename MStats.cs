@@ -127,7 +127,7 @@ namespace Oxide.Plugins
             public string Database = "mstats";
             public string Username = "mstats";
             public string Password = "change-me";
-            public bool CreateDatabaseIfMissing = false;
+            public bool CreateDatabaseIfMissing = true;
             public bool UseUtcTimestamps = true;
             public int HealthCheckIntervalSeconds = 30;
             public int ReconnectIntervalSeconds = 60;
