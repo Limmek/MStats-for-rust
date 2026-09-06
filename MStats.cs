@@ -7,10 +7,12 @@ using System.Text.RegularExpressions;
 using ConVar;
 using Oxide.Core;
 using Oxide.Core.Database;
-using Oxide.Core.MySql.Libraries;
 using Oxide.Core.Plugins;
 using Rust;
 using UnityEngine;
+// Alias instead of `using Oxide.Core.MySql.Libraries;`: inside namespace Oxide.Plugins the bare name `MySql`
+// resolves to Carbon's `Oxide.MySql` namespace before any using directive is considered (CS0118 on Carbon).
+using MySqlLibrary = Oxide.Core.MySql.Libraries.MySql;
 
 namespace Oxide.Plugins
 {
@@ -43,7 +45,7 @@ namespace Oxide.Plugins
         #region Fields
 
         private ConfigData _config;
-        private MySql _mySql;
+        private MySqlLibrary _mySql;
         private Connection _db;
         private DbState _state = DbState.Disabled;
         private bool _schemaReady;
@@ -270,7 +272,7 @@ namespace Oxide.Plugins
                 return;
             }
 
-            _mySql = Interface.Oxide.GetLibrary<MySql>();
+            _mySql = Interface.Oxide.GetLibrary<MySqlLibrary>();
             if (_mySql == null)
             {
                 PrintError("The MySQL library (Oxide.Core.MySql) is not available in this modding framework. MStats cannot run without it.");
