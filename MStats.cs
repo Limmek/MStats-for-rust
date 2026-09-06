@@ -179,7 +179,10 @@ namespace Oxide.Plugins
         private sealed class AdminLogSettings
         {
             public bool Enabled = true;
-            public List<string> Keywords = new List<string> { "admin", "mod", "cheat", "hack" };
+
+            // Array, not List<T>: with a pre-populated List Json.NET (ObjectCreationHandling.Auto) reuses the
+            // instance and appends the file's values, duplicating the defaults on every load. Arrays are always replaced.
+            public string[] Keywords = { "admin", "mod", "cheat", "hack" };
         }
 
         protected override void LoadDefaultConfig()
@@ -205,7 +208,11 @@ namespace Oxide.Plugins
                 _config.Logging = _config.Logging ?? new LoggingSettings();
                 _config.ServerStatus = _config.ServerStatus ?? new ServerStatusSettings();
                 _config.AdminLog = _config.AdminLog ?? new AdminLogSettings();
-                _config.AdminLog.Keywords = _config.AdminLog.Keywords ?? new List<string>();
+                _config.AdminLog.Keywords = (_config.AdminLog.Keywords ?? new string[0])
+                    .Where(k => !string.IsNullOrWhiteSpace(k))
+                    .Select(k => k.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
                 ValidateConfig(_config);
                 SaveConfigData();
             }
