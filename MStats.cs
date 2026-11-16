@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Limmek
+// SPDX-License-Identifier: MIT
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -16,7 +19,7 @@ using MySqlLibrary = Oxide.Core.MySql.Libraries.MySql;
 
 namespace Oxide.Plugins
 {
-    [Info("MStats", "Limmek", "2.0.0")]
+    [Info("MStats", "Limmek", "2.1.0")]
     [Description("Logs player statistics and server events to MySQL")]
     public class MStats : RustPlugin
     {
@@ -1251,6 +1254,12 @@ namespace Oxide.Plugins
         // Harvesting planted crops.
         private void OnGrowableGathered(GrowableEntity plant, Item item, BasePlayer player) => Gather(player, item, "growable");
 
+        // Clones/seeds taken from a planted crop (Livestock update, Oct 2026).
+        private void OnCuttingTaken(GrowableEntity plant, BasePlayer player, Item clone) => Gather(player, clone, "cutting");
+
+        // Milk taken from an owned cow; the item goes straight into the inventory, so no pickup hook fires.
+        private void OnCowMilked(Rust.Ai.Gen2.Cow cow, BasePlayer player, Item milk) => Gather(player, milk, "livestock");
+
         private void OnFishCaught(ItemDefinition fish, BaseFishingRod rod, BasePlayer player)
         {
             if (fish == null || !IsRealPlayer(player) || !_config.Logging.Gathering) return;
@@ -1395,6 +1404,13 @@ namespace Oxide.Plugins
         private void OnTechTreeNodeUnlocked(Workbench workbench, TechTreeData.NodeInstance node, BasePlayer player)
         {
             ItemAction(player, "unlocked", node != null ? node.itemDef : null, 1);
+        }
+
+        // Blueprint rework (Nov 2026): learning an item by studying a blueprint item.
+        private void OnPlayerStudyBlueprint(BasePlayer player, Item blueprint)
+        {
+            if (blueprint == null) return;
+            ItemAction(player, "studied", blueprint.blueprintTargetDef ?? blueprint.info, 1);
         }
 
         // Vending machine purchases. NPC vending machines call the same base method, so this covers both.
@@ -1641,6 +1657,10 @@ namespace Oxide.Plugins
                 {
                     PveKill(attacker, entity, info, victimPlayer is HumanNPC ? "scientist" : "npc");
                 }
+                else if (entity is Rust.Ai.Gen2.ScientistNPC2)
+                {
+                    PveKill(attacker, entity, info, "scientist");
+                }
                 else if (entity is BaseNpc || entity is Rust.Ai.Gen2.BaseNPC2 || entity is SimpleShark || entity is RidableHorse)
                 {
                     PveKill(attacker, entity, info, "animal");
@@ -1662,6 +1682,15 @@ namespace Oxide.Plugins
             {
                 PrintError($"OnEntityDeath: {ex}");
             }
+        }
+
+        // Monument blockers (Sept 2026) are ResourceEntities, not BaseCombatEntities, so the overload above never sees them.
+        private void OnEntityDeath(MonumentBlocker blocker, HitInfo info)
+        {
+            if (blocker == null || _state == DbState.Disabled) return;
+            var attacker = info != null ? info.InitiatorPlayer : null;
+            var byPlayer = IsRealPlayer(attacker);
+            ServerEvent("monument_blocker_destroyed", blocker, blocker.transform.position, byPlayer ? attacker : null, null, byPlayer ? WeaponRef(info, attacker).Name : null);
         }
 
         private void PlayerDied(BasePlayer victim, HitInfo info, BasePlayer attacker, bool attackerIsPlayer)
@@ -1749,6 +1778,7 @@ namespace Oxide.Plugins
                 if (initiator == victim) return "self";
                 var player = initiator as BasePlayer;
                 if (player != null) return IsRealPlayer(player) ? "player" : "npc";
+                if (initiator is Rust.Ai.Gen2.ScientistNPC2) return "npc";
                 if (initiator is BaseNpc || initiator is Rust.Ai.Gen2.BaseNPC2 || initiator is SimpleShark) return "animal";
                 if (initiator is PatrolHelicopter) return "patrol_helicopter";
                 if (initiator is BradleyAPC) return "bradley";
@@ -1785,6 +1815,7 @@ namespace Oxide.Plugins
         {
             var player = target as BasePlayer;
             if (player != null) return IsRealPlayer(player) ? "player" : "npc";
+            if (target is Rust.Ai.Gen2.ScientistNPC2) return "npc";
             if (target is BaseNpc || target is Rust.Ai.Gen2.BaseNPC2 || target is SimpleShark || target is RidableHorse) return "animal";
             if (target is PatrolHelicopter || target is BradleyAPC) return "event";
             if (target is BuildingBlock) return "building";
@@ -1929,6 +1960,19 @@ namespace Oxide.Plugins
             Activity(player, "claimed", animal != null ? animal.ShortPrefabName : "animal");
         }
 
+        // Cows/sheep are claimed by eating at a trough; Rust only raises the pre-hook, so credit the trough owner.
+        private void OnLivestockAnimalClaim(Rust.Ai.Gen2.LivestockAnimal animal, HitchTrough trough)
+        {
+            if (animal == null || trough == null) return;
+            Activity(trough.OwnerID, "claimed", animal.ShortPrefabName);
+        }
+
+        // Metal detector flags and other diggable spots.
+        private void OnPlayerDigComplete(BasePlayer player, BaseDiggableEntity entity)
+        {
+            Activity(player, "dug", entity != null ? entity.ShortPrefabName : "unknown");
+        }
+
         private void OnSignUpdated(Signage sign, BasePlayer player)
         {
             if (sign == null) return;
@@ -1949,10 +1993,16 @@ namespace Oxide.Plugins
 
         private void Activity(BasePlayer player, string action, string subject, int amount = 1)
         {
-            if (!_config.Logging.Activity || !IsRealPlayer(player) || amount <= 0) return;
+            if (!IsRealPlayer(player)) return;
+            Activity(SteamId(player), action, subject, amount);
+        }
+
+        private void Activity(ulong steamId, string action, string subject, int amount = 1)
+        {
+            if (!_config.Logging.Activity || steamId <= SteamIdOffset || amount <= 0) return;
             Count("activity");
             Write("INSERT INTO mstats_activity (steam_id, action, subject, amount, day) VALUES (@0, @1, @2, @3, @4) ON DUPLICATE KEY UPDATE amount = amount + @3",
-                SteamId(player), Truncate(action, 32), Truncate(string.IsNullOrEmpty(subject) ? "unknown" : subject, 64), amount, Day());
+                steamId, Truncate(action, 32), Truncate(string.IsNullOrEmpty(subject) ? "unknown" : subject, 64), amount, Day());
         }
 
         #endregion
@@ -2085,6 +2135,18 @@ namespace Oxide.Plugins
                 if (arm == null || arm.IsDestroyed) return;
                 ServerEvent(arm.IsMining() ? "excavator_started" : "excavator_stopped", arm, arm.transform.position, null, null, null);
             });
+        }
+
+        // Power plant stage (0 = offline) changes when heavy fuses are inserted or decay (Power Trip / Livestock updates).
+        private void OnPowergridStageChanged(PowergridManager manager, int stage)
+        {
+            ServerEvent("powergrid_stage_changed", manager, manager != null ? manager.transform.position : Vector3.zero, null, null, "stage " + stage);
+        }
+
+        // Roaming scientist boat groups (Nov 2026). Rust passes more arguments; only the spawner is needed.
+        private void OnBoatGroupSpawned(BoatGroupSpawner spawner)
+        {
+            ServerEvent("scientist_boats_spawned", null, spawner != null ? spawner.transform.position : Vector3.zero, null, null, null);
         }
 
         private void ServerEvent(string evt, BaseEntity entity, Vector3 position, BasePlayer player, ulong? steamId, string details)
